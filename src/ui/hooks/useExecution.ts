@@ -13,7 +13,7 @@ interface UseExecutionReturn {
   logs: LogEntry[];
   duration: number | null;
   error: string | null;
-  start: (codeJs: string, projectId: string) => void;
+  start: (codeJs: string, uiHtml: string, projectId: string) => void;
   stop: () => void;
   reset: () => void;
   handlePluginMessage: (msg: PluginMessage) => boolean;
@@ -28,13 +28,13 @@ export function useExecution(): UseExecutionReturn {
   const [duration, setDuration] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const start = useCallback((codeJs: string, projectId: string) => {
+  const start = useCallback((codeJs: string, uiHtml: string, projectId: string) => {
     setStatus('loading');
     setLogs([]);
     setDuration(null);
     setError(null);
     setExecutionId(null);
-    sendToPlugin({ type: 'EXECUTE_PLUGIN', payload: { codeJs, projectId } });
+    sendToPlugin({ type: 'EXECUTE_PLUGIN', payload: { codeJs, uiHtml, projectId } });
   }, []);
 
   const stop = useCallback(() => {

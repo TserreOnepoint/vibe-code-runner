@@ -91,6 +91,7 @@ async function handleMessage(msg: UIMessage): Promise<void> {
       case 'EXECUTE_PLUGIN': {
         executorService.execute(
           msg.payload.codeJs,
+          msg.payload.uiHtml,
           msg.payload.projectId,
           executorCallbacks,
         );

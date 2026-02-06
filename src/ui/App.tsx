@@ -50,7 +50,11 @@ const App: FunctionalComponent = () => {
 
   const handleExecute = useCallback(() => {
     if (bundleHook.bundle && bundleHook.selectedProject) {
-      executionHook.start(bundleHook.bundle.codeJs, bundleHook.selectedProject.id);
+      executionHook.start(
+        bundleHook.bundle.codeJs,
+        bundleHook.bundle.uiHtml,
+        bundleHook.selectedProject.id,
+      );
     }
   }, [bundleHook.bundle, bundleHook.selectedProject, executionHook.start]);
 

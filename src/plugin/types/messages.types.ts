@@ -12,7 +12,7 @@ export type UIMessage =
   | { type: 'GET_SETTINGS' }
   | { type: 'STORE_LAST_PROJECT'; payload: { projectId: string } }
   | { type: 'GET_LAST_PROJECT' }
-  | { type: 'EXECUTE_PLUGIN'; payload: { codeJs: string; projectId: string } }
+  | { type: 'EXECUTE_PLUGIN'; payload: { codeJs: string; uiHtml: string; projectId: string } }
   | { type: 'STOP_EXECUTION' };
 
 export interface AuthPayload {

@@ -35,12 +35,14 @@ export interface ExecutorCallbacks {
  * Execute plugin code dynamically.
  * - Generates a unique execution_id
  * - Overrides console to capture logs
+ * - Injects __html__ (Figma build-time variable) with ui.html content
  * - Wraps code in new Function() with try/catch
  * - Enforces 60s timeout
  * - Cleans up after execution
  */
 export function execute(
   codeJs: string,
+  uiHtml: string,
   projectId: string,
   callbacks: ExecutorCallbacks,
 ): void {
@@ -99,9 +101,12 @@ export function execute(
   // Execute in next microtask to not block the message handler
   try {
     // Wrap code in a function to isolate scope.
-    // figma.* is already global in the Figma sandbox, so the plugin code has access.
+    // Inject __html__ (Figma build-time variable) so plugin code can call figma.showUI(__html__).
+    // figma.* is already global in the Figma sandbox.
+    const escapedHtml = uiHtml.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     const wrappedCode = `
       "use strict";
+      var __html__ = \`${escapedHtml}\`;
       try {
         ${codeJs}
       } catch (__err__) {
