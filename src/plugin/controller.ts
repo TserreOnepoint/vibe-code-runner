@@ -6,6 +6,7 @@
 import type { UIMessage, PluginMessage } from './types/messages.types';
 import { DEFAULT_SETTINGS } from './types/messages.types';
 import * as authService from './services/auth.service';
+import * as executorService from './services/executor.service';
 
 // --- Show UI ---
 
@@ -16,6 +17,8 @@ figma.showUI(__html__, { width: 360, height: 480 });
 function sendToUI(msg: PluginMessage): void {
   figma.ui.postMessage(msg);
 }
+
+const executorCallbacks: executorService.ExecutorCallbacks = { sendToUI };
 
 // --- Boot: attempt auto-reconnect ---
 
@@ -82,6 +85,20 @@ async function handleMessage(msg: UIMessage): Promise<void> {
       case 'GET_LAST_PROJECT': {
         const projectId = await authService.getLastProject();
         sendToUI({ type: 'LAST_PROJECT_DATA', payload: { projectId } });
+        break;
+      }
+
+      case 'EXECUTE_PLUGIN': {
+        executorService.execute(
+          msg.payload.codeJs,
+          msg.payload.projectId,
+          executorCallbacks,
+        );
+        break;
+      }
+
+      case 'STOP_EXECUTION': {
+        executorService.stop(executorCallbacks);
         break;
       }
 

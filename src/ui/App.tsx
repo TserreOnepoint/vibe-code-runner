@@ -12,8 +12,10 @@ import { usePluginMessages, sendToPlugin } from './hooks/useMessaging';
 import { useAuth } from './hooks/useAuth';
 import { useProjects } from './hooks/useProjects';
 import { useBundle } from './hooks/useBundle';
+import { useExecution } from './hooks/useExecution';
 import { Login } from './components/Login';
 import { ProjectList } from './components/ProjectList';
+import { Execution } from './components/Execution';
 
 const App: FunctionalComponent = () => {
   const [screen, setScreen] = useState<Screen>('login');
@@ -23,23 +25,34 @@ const App: FunctionalComponent = () => {
   const { auth, signIn, signOut, handlePluginMessage, clearError } = useAuth();
   const projectsHook = useProjects(auth.user?.id || null);
   const bundleHook = useBundle();
+  const executionHook = useExecution();
 
   // --- Select project: load bundle then navigate (US-RUN-03) ---
 
   const handleSelectProject = useCallback(async (project: Project) => {
+    executionHook.reset();
     const success = await bundleHook.load(project);
     if (success) {
       setScreen('execution');
     }
     // On failure, bundleHook.error is set and user stays on projects screen
-  }, [bundleHook.load]);
+  }, [bundleHook.load, executionHook.reset]);
 
   // --- Back to projects (from execution or on bundle error) ---
 
   const handleBackToProjects = useCallback(() => {
+    executionHook.reset();
     bundleHook.reset();
     setScreen('projects');
-  }, [bundleHook.reset]);
+  }, [bundleHook.reset, executionHook.reset]);
+
+  // --- Execute plugin (US-RUN-04) ---
+
+  const handleExecute = useCallback(() => {
+    if (bundleHook.bundle && bundleHook.selectedProject) {
+      executionHook.start(bundleHook.bundle.codeJs, bundleHook.selectedProject.id);
+    }
+  }, [bundleHook.bundle, bundleHook.selectedProject, executionHook.start]);
 
   // --- Init Supabase client once we have settings ---
 
@@ -86,14 +99,19 @@ const App: FunctionalComponent = () => {
       }
 
       // Acknowledgements we can ignore
-      if (msg.type === 'LAST_PROJECT_STORED' || msg.type === 'LAST_PROJECT_DATA') {
+      if (msg.type === 'LAST_PROJECT_STORED' || msg.type === 'LAST_PROJECT_DATA' || msg.type === 'SETTING_STORED') {
+        return;
+      }
+
+      // Delegate execution-related messages (US-RUN-04)
+      if (executionHook.handlePluginMessage(msg)) {
         return;
       }
 
       // Delegate auth-related messages
       handlePluginMessage(msg);
     },
-    [handlePluginMessage],
+    [handlePluginMessage, executionHook.handlePluginMessage],
   );
 
   usePluginMessages(onPluginMessage);
@@ -152,26 +170,23 @@ const App: FunctionalComponent = () => {
       );
 
     case 'execution':
-      // Placeholder - US-RUN-04/05/09/10
+      if (!bundleHook.bundle || !bundleHook.selectedProject) {
+        return null;
+      }
       return (
-        <div class="screen">
-          <div class="screen-header">
-            <div class="screen-title">
-              {bundleHook.selectedProject?.name || 'Execution'}
-            </div>
-            <div class="screen-subtitle">
-              {bundleHook.bundle
-                ? `${bundleHook.bundle.files.length} fichiers charges`
-                : 'Aucun bundle'}
-            </div>
-          </div>
-          <button class="btn btn-ghost" onClick={handleBackToProjects}>
-            &larr; Retour aux projets
-          </button>
-          <div style={{ color: 'var(--color-text-muted)', marginTop: 'var(--space-lg)' }}>
-            Execution a venir (US-RUN-04)
-          </div>
-        </div>
+        <Execution
+          project={bundleHook.selectedProject}
+          bundle={bundleHook.bundle}
+          status={executionHook.status}
+          executionId={executionHook.executionId}
+          logs={executionHook.logs}
+          duration={executionHook.duration}
+          error={executionHook.error}
+          onExecute={handleExecute}
+          onStop={executionHook.stop}
+          onReset={executionHook.reset}
+          onBack={handleBackToProjects}
+        />
       );
 
     case 'settings':

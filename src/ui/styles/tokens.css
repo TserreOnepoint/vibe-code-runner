@@ -342,3 +342,124 @@ body {
   text-align: center;
   padding: var(--space-xl);
 }
+
+/* --- Execution screen (US-RUN-04) --- */
+
+.exec-top-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+}
+
+.exec-status-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-md);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-md);
+}
+
+.exec-status-indicator {
+  display: flex;
+  align-items: center;
+  gap: var(--space-xs);
+}
+
+.exec-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.exec-duration {
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.exec-id {
+  margin-left: auto;
+  color: var(--color-text-muted);
+  font-family: monospace;
+  font-size: var(--font-size-xs);
+  opacity: 0.7;
+}
+
+.exec-actions {
+  display: flex;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
+}
+
+.exec-logs-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-xs) 0;
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  color: var(--color-text-muted);
+  border-bottom: 1px solid var(--color-border);
+  margin-bottom: var(--space-xs);
+}
+
+.exec-logs-count {
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+  background: var(--color-bg-input);
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-variant-numeric: tabular-nums;
+}
+
+.exec-logs {
+  flex: 1;
+  overflow-y: auto;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  background: var(--color-bg);
+  padding: var(--space-xs) 0;
+}
+
+.exec-logs-empty {
+  color: var(--color-text-muted);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  text-align: center;
+  padding: var(--space-xl) var(--space-md);
+}
+
+.exec-log-entry {
+  display: flex;
+  gap: var(--space-sm);
+  padding: 1px var(--space-xs);
+  border-radius: 2px;
+}
+
+.exec-log-entry:hover {
+  background: var(--color-bg-hover);
+}
+
+.exec-log-time {
+  color: var(--color-text-muted);
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.exec-log-level {
+  flex-shrink: 0;
+  width: 28px;
+  text-align: center;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+.exec-log-msg {
+  flex: 1;
+  word-break: break-word;
+  white-space: pre-wrap;
+}

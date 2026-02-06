@@ -11,7 +11,9 @@ export type UIMessage =
   | { type: 'STORE_SETTING'; payload: { key: string; value: unknown } }
   | { type: 'GET_SETTINGS' }
   | { type: 'STORE_LAST_PROJECT'; payload: { projectId: string } }
-  | { type: 'GET_LAST_PROJECT' };
+  | { type: 'GET_LAST_PROJECT' }
+  | { type: 'EXECUTE_PLUGIN'; payload: { codeJs: string; projectId: string } }
+  | { type: 'STOP_EXECUTION' };
 
 export interface AuthPayload {
   access_token: string;
@@ -33,6 +35,10 @@ export type PluginMessage =
   | { type: 'SETTING_STORED' }
   | { type: 'LAST_PROJECT_STORED' }
   | { type: 'LAST_PROJECT_DATA'; payload: { projectId: string | null } }
+  | { type: 'EXECUTION_STARTED'; payload: { executionId: string; projectId: string } }
+  | { type: 'EXECUTION_LOG'; payload: { executionId: string; level: 'info' | 'warn' | 'error'; message: string; timestamp: number } }
+  | { type: 'EXECUTION_DONE'; payload: { executionId: string; duration: number } }
+  | { type: 'EXECUTION_ERROR'; payload: { executionId: string; message: string; stack?: string } }
   | { type: 'ERROR'; payload: { message: string; source: string } };
 
 // --- Settings ---
