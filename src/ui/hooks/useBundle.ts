@@ -80,7 +80,7 @@ export function useBundle(): UseBundleReturn {
 
       // Call the DB function get_project_bundle
       const { data, error: rpcError } = await sb.rpc('get_project_bundle', {
-        _project_id: project.id,
+        project_id: project.id,
       });
 
       if (rpcError) {
