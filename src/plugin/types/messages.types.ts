@@ -42,7 +42,7 @@ export interface RunnerSettings {
 
 export const DEFAULT_SETTINGS: RunnerSettings = {
   supabaseUrl: 'https://qpmttafobnkargxmkorw.supabase.co',
-  supabaseAnonKey: '',
+  supabaseAnonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFwbXR0YWZvYm5rYXJneG1rb3J3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzAxNTUzNjEsImV4cCI6MjA4NTczMTM2MX0.u7e-otEJbHE_Pcse4GQa3fUZe4CpJekKpy5uuDK9ijI',
   debugMode: false,
   autoReconnect: true,
 };
