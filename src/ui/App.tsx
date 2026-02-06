@@ -5,12 +5,15 @@
 import { h, FunctionalComponent } from 'preact';
 import { useState, useEffect, useCallback } from 'preact/hooks';
 import type { Screen } from '../plugin/types/runner.types';
+import type { Project } from '../plugin/types/runner.types';
 import type { PluginMessage, RunnerSettings } from '../plugin/types/messages.types';
 import { DEFAULT_SETTINGS } from '../plugin/types/messages.types';
 import { initSupabase } from './lib/supabase';
 import { usePluginMessages, sendToPlugin } from './hooks/useMessaging';
 import { useAuth } from './hooks/useAuth';
+import { useProjects } from './hooks/useProjects';
 import { Login } from './components/Login';
+import { ProjectList } from './components/ProjectList';
 
 const App: FunctionalComponent = () => {
   const [screen, setScreen] = useState<Screen>('login');
@@ -18,6 +21,13 @@ const App: FunctionalComponent = () => {
   const [supabaseReady, setSupabaseReady] = useState(false);
 
   const { auth, signIn, signOut, handlePluginMessage, clearError } = useAuth();
+  const projectsHook = useProjects(auth.user?.id || null);
+
+  // Callback when user selects a project (US-RUN-03 placeholder)
+  const handleSelectProject = useCallback((_project: Project) => {
+    // Will navigate to execution screen in US-RUN-03
+    setScreen('execution');
+  }, []);
 
   // --- Init Supabase client once we have settings ---
 
@@ -95,26 +105,18 @@ const App: FunctionalComponent = () => {
       );
 
     case 'projects':
-      // Placeholder - US-RUN-02/03
       return (
-        <div class="screen">
-          <div class="screen-header">
-            <div class="screen-title">My Projects</div>
-            <div class="welcome">
-              Signed in as <span class="welcome-email">{auth.user?.email}</span>
-            </div>
-          </div>
-          <div style={{ color: 'var(--color-text-muted)', fontSize: 'var(--font-size-sm)' }}>
-            Project list coming soon (US-RUN-02/03)
-          </div>
-          <button
-            class="btn btn-ghost"
-            style={{ marginTop: 'auto' }}
-            onClick={signOut}
-          >
-            Sign out
-          </button>
-        </div>
+        <ProjectList
+          userId={auth.user!.id}
+          userEmail={auth.user!.email}
+          projects={projectsHook.projects}
+          loading={projectsHook.loading}
+          error={projectsHook.error}
+          onFetch={projectsHook.fetch}
+          onClearError={projectsHook.clearError}
+          onSelect={handleSelectProject}
+          onSignOut={signOut}
+        />
       );
 
     case 'execution':
