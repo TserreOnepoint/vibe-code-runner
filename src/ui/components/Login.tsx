@@ -2,7 +2,8 @@
 // Login.tsx - US-RUN-01 : authentication form
 // ============================================================
 
-import { h, FunctionalComponent } from 'preact';
+import { h } from 'preact';
+import type { FunctionalComponent } from 'preact';
 import { useState, useCallback } from 'preact/hooks';
 import { ErrorBanner } from './ErrorBanner';
 

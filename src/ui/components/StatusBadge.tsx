@@ -2,7 +2,8 @@
 // StatusBadge.tsx - Project status indicator (draft/ready/error)
 // ============================================================
 
-import { h, FunctionalComponent } from 'preact';
+import { h } from 'preact';
+import type { FunctionalComponent } from 'preact';
 import type { ProjectStatus } from '../../plugin/types/runner.types';
 
 interface Props {

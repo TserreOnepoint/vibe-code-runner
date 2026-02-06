@@ -2,7 +2,8 @@
 // ProjectList.tsx - US-RUN-02 : project list + selection
 // ============================================================
 
-import { h, FunctionalComponent } from 'preact';
+import { h } from 'preact';
+import type { FunctionalComponent } from 'preact';
 import { useEffect } from 'preact/hooks';
 import type { Project } from '../../plugin/types/runner.types';
 import { StatusBadge } from './StatusBadge';

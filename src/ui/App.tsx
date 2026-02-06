@@ -2,10 +2,10 @@
 // App.tsx - Root Preact component, screen routing
 // ============================================================
 
-import { h, FunctionalComponent } from 'preact';
+import { h } from 'preact';
+import type { FunctionalComponent } from 'preact';
 import { useState, useEffect, useCallback } from 'preact/hooks';
-import type { Screen } from '../plugin/types/runner.types';
-import type { Project } from '../plugin/types/runner.types';
+import type { Screen, Project } from '../plugin/types/runner.types';
 import type { PluginMessage, RunnerSettings } from '../plugin/types/messages.types';
 import { DEFAULT_SETTINGS } from '../plugin/types/messages.types';
 import { initSupabase } from './lib/supabase';

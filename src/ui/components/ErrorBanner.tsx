@@ -2,7 +2,8 @@
 // ErrorBanner.tsx - US-RUN-11 : generic error display
 // ============================================================
 
-import { h, FunctionalComponent } from 'preact';
+import { h } from 'preact';
+import type { FunctionalComponent } from 'preact';
 
 interface Props {
   message: string;
