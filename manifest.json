@@ -1,10 +1,16 @@
 {
   "name": "Vibe Code Runner",
+  "id": "1601712706906363589",
   "api": "1.0.0",
   "main": "code.js",
   "ui": "ui.html",
-  "editorType": ["figma", "figjam"],
+  "editorType": [
+    "figma",
+    "figjam"
+  ],
   "networkAccess": {
-    "allowedDomains": ["https://*.supabase.co"]
+    "allowedDomains": [
+      "https://*.supabase.co"
+    ]
   }
 }
