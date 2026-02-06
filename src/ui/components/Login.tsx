@@ -50,7 +50,6 @@ export const Login: FunctionalComponent<Props> = ({ loading, error, onSignIn, on
             value={email}
             onInput={(e) => setEmail((e.target as HTMLInputElement).value)}
             disabled={loading}
-            autoFocus
           />
         </div>
 
