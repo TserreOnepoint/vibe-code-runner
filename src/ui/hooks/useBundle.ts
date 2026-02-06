@@ -79,22 +79,49 @@ export function useBundle(): UseBundleReturn {
       const sb = getSupabase();
 
       // Call the DB function get_project_bundle
+      console.log('[useBundle] Loading bundle for project:', project.id, project.name);
       const { data, error: rpcError } = await sb.rpc('get_project_bundle', {
         p_project_id: project.id,
       });
 
       if (rpcError) {
+        console.error('[useBundle] RPC error:', rpcError);
         throw new Error(`Erreur chargement bundle: ${rpcError.message}`);
       }
 
       if (!data) {
+        console.error('[useBundle] RPC returned null/undefined data');
         throw new Error('Bundle vide retourne par le serveur');
       }
 
-      // The RPC returns { manifest, files }
+      // Debug: log raw response
+      console.log('[useBundle] Raw data type:', typeof data);
+      console.log('[useBundle] Raw data:', JSON.stringify(data, null, 2).slice(0, 2000));
+
       const raw = typeof data === 'string' ? JSON.parse(data) : data;
+
+      console.log('[useBundle] Parsed raw keys:', Object.keys(raw));
+      console.log('[useBundle] raw.manifest:', raw.manifest);
+      console.log('[useBundle] raw.project:', raw.project);
+      console.log('[useBundle] raw.files (count):', Array.isArray(raw.files) ? raw.files.length : typeof raw.files);
+
+      // Try to find the manifest in the response
+      // Could be raw.manifest, raw.project.manifest_config, or raw.project.manifest
+      let manifestData = raw.manifest;
+      if (!manifestData && raw.project) {
+        console.log('[useBundle] raw.project keys:', Object.keys(raw.project));
+        if (raw.project.manifest_config) {
+          console.log('[useBundle] Found manifest at raw.project.manifest_config');
+          manifestData = raw.project.manifest_config;
+        } else if (raw.project.manifest) {
+          console.log('[useBundle] Found manifest at raw.project.manifest');
+          manifestData = raw.project.manifest;
+        }
+      }
+      console.log('[useBundle] Resolved manifestData:', manifestData);
+
       const files: BundleFile[] = raw.files || [];
-      const manifest = validateManifest(raw.manifest);
+      const manifest = validateManifest(manifestData);
       const { codeJs, uiHtml } = extractBundleFiles(files);
 
       const parsed: ParsedBundle = { manifest, codeJs, uiHtml, files };
