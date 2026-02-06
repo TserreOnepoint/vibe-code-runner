@@ -1,0 +1,19 @@
+{
+  "name": "vibe-code-runner",
+  "version": "1.0.0",
+  "description": "Vibe Code Runner - Generic Figma plugin for Vibe Code Studio",
+  "scripts": {
+    "build": "node build.mjs",
+    "watch": "node build.mjs --watch",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "preact": "^10.25.0",
+    "@supabase/supabase-js": "^2.49.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "@figma/plugin-typings": "^1.106.0",
+    "esbuild": "^0.24.0"
+  }
+}
