@@ -1,0 +1,272 @@
+/* ============================================================
+   Design tokens - Vibe Code Runner
+   ============================================================ */
+
+:root {
+  /* Colors */
+  --color-bg: #1e1e1e;
+  --color-bg-subtle: #252526;
+  --color-bg-hover: #2a2d2e;
+  --color-bg-input: #3c3c3c;
+  --color-surface: #333333;
+  --color-border: #464647;
+  --color-border-focus: #007acc;
+
+  --color-text: #cccccc;
+  --color-text-muted: #969696;
+  --color-text-bright: #ffffff;
+
+  --color-primary: #007acc;
+  --color-primary-hover: #1a8ad4;
+  --color-primary-text: #ffffff;
+
+  --color-error: #f14c4c;
+  --color-error-bg: rgba(241, 76, 76, 0.1);
+  --color-warning: #cca700;
+  --color-success: #89d185;
+
+  --color-status-draft: #cca700;
+  --color-status-ready: #89d185;
+  --color-status-error: #f14c4c;
+
+  /* Typography */
+  --font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-size-xs: 11px;
+  --font-size-sm: 12px;
+  --font-size-base: 13px;
+  --font-size-lg: 15px;
+  --font-size-xl: 18px;
+
+  /* Spacing */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 12px;
+  --space-lg: 16px;
+  --space-xl: 24px;
+
+  /* Radius */
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+
+  /* Transitions */
+  --transition-fast: 120ms ease;
+  --transition-normal: 200ms ease;
+}
+
+/* ============================================================
+   Reset & base
+   ============================================================ */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ============================================================
+   Common utilities
+   ============================================================ */
+
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  padding: var(--space-lg);
+  overflow-y: auto;
+}
+
+.screen-header {
+  margin-bottom: var(--space-lg);
+}
+
+.screen-title {
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  color: var(--color-text-bright);
+  margin-bottom: var(--space-xs);
+}
+
+.screen-subtitle {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+}
+
+/* --- Form elements --- */
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-xs);
+  margin-bottom: var(--space-md);
+}
+
+.form-label {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: var(--space-sm) var(--space-md);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family);
+  color: var(--color-text-bright);
+  background: var(--color-bg-input);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  outline: none;
+  transition: border-color var(--transition-fast);
+}
+
+.form-input:focus {
+  border-color: var(--color-border-focus);
+}
+
+.form-input::placeholder {
+  color: var(--color-text-muted);
+}
+
+/* --- Buttons --- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-lg);
+  font-size: var(--font-size-base);
+  font-family: var(--font-family);
+  font-weight: 500;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--transition-fast), opacity var(--transition-fast);
+  white-space: nowrap;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  color: var(--color-primary-text);
+  background: var(--color-primary);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--color-primary-hover);
+}
+
+.btn-ghost {
+  color: var(--color-text-muted);
+  background: transparent;
+  padding: var(--space-xs) var(--space-sm);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-bg-hover);
+}
+
+.btn-danger {
+  color: var(--color-error);
+  background: var(--color-error-bg);
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: rgba(241, 76, 76, 0.2);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+/* --- Error banner --- */
+
+.error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-error-bg);
+  border: 1px solid rgba(241, 76, 76, 0.3);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  color: var(--color-error);
+  margin-bottom: var(--space-md);
+}
+
+.error-banner-message {
+  flex: 1;
+}
+
+.error-banner-close {
+  background: none;
+  border: none;
+  color: var(--color-error);
+  cursor: pointer;
+  padding: 0;
+  font-size: var(--font-size-base);
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.error-banner-close:hover {
+  opacity: 1;
+}
+
+/* --- Loader --- */
+
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  gap: var(--space-md);
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+}
+
+.spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* --- Welcome --- */
+
+.welcome {
+  display: flex;
+  align-items: center;
+  gap: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
+  background: var(--color-bg-subtle);
+  border-radius: var(--radius-sm);
+  font-size: var(--font-size-sm);
+  margin-bottom: var(--space-lg);
+}
+
+.welcome-email {
+  color: var(--color-text-bright);
+  font-weight: 500;
+}
