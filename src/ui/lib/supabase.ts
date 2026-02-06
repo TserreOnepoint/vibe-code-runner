@@ -6,16 +6,23 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
 let client: SupabaseClient | null = null;
+let currentUrl: string | null = null;
+let currentKey: string | null = null;
 
 /**
  * Initialize or re-initialize the Supabase client.
- * Called on boot with settings from code.js, or with defaults.
+ * Idempotent: skips re-creation if url+key haven't changed.
  */
 export function initSupabase(url: string, anonKey: string): SupabaseClient {
+  if (client && currentUrl === url && currentKey === anonKey) {
+    return client;
+  }
+  currentUrl = url;
+  currentKey = anonKey;
   client = createClient(url, anonKey, {
     auth: {
-      persistSession: false,       // We persist via figma.clientStorage, not localStorage
-      autoRefreshToken: false,     // Manual refresh via auto-reconnect flow
+      persistSession: false,
+      autoRefreshToken: false,
     },
   });
   return client;
