@@ -37,6 +37,25 @@ export interface BundleFile {
   language: string;
 }
 
+// --- Parsed bundle (US-RUN-03) ---
+
+export interface ManifestConfig {
+  name: string;
+  main: string;
+  ui: string;
+  api?: string;
+  editorType?: string[];
+  networkAccess?: { allowedDomains?: string[] };
+  [key: string]: unknown;
+}
+
+export interface ParsedBundle {
+  manifest: ManifestConfig;
+  codeJs: string;
+  uiHtml: string;
+  files: BundleFile[];
+}
+
 export type ExecutionStatus = 'idle' | 'loading' | 'running' | 'stopped' | 'error' | 'done';
 
 export interface ExecutionState {

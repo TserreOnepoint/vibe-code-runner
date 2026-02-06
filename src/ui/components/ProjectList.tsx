@@ -2,8 +2,7 @@
 // ProjectList.tsx - US-RUN-02 : project list + selection
 // ============================================================
 
-import { h } from 'preact';
-import type { FunctionalComponent } from 'preact';
+import { h, FunctionalComponent } from 'preact';
 import { useEffect } from 'preact/hooks';
 import type { Project } from '../../plugin/types/runner.types';
 import { StatusBadge } from './StatusBadge';
@@ -15,8 +14,10 @@ interface Props {
   projects: Project[];
   loading: boolean;
   error: string | null;
+  bundleError: string | null;
   onFetch: () => Promise<void>;
   onClearError: () => void;
+  onClearBundleError: () => void;
   onSelect: (project: Project) => void;
   onSignOut: () => void;
 }
@@ -26,8 +27,10 @@ export const ProjectList: FunctionalComponent<Props> = ({
   projects,
   loading,
   error,
+  bundleError,
   onFetch,
   onClearError,
+  onClearBundleError,
   onSelect,
   onSignOut,
 }) => {
@@ -46,6 +49,7 @@ export const ProjectList: FunctionalComponent<Props> = ({
       </div>
 
       {error && <ErrorBanner message={error} onDismiss={onClearError} />}
+      {bundleError && <ErrorBanner message={bundleError} onDismiss={onClearBundleError} />}
 
       {/* Toolbar: refresh */}
       <div class="project-toolbar">

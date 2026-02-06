@@ -73,6 +73,18 @@ async function handleMessage(msg: UIMessage): Promise<void> {
         break;
       }
 
+      case 'STORE_LAST_PROJECT': {
+        await authService.storeLastProject(msg.payload.projectId);
+        sendToUI({ type: 'LAST_PROJECT_STORED' });
+        break;
+      }
+
+      case 'GET_LAST_PROJECT': {
+        const projectId = await authService.getLastProject();
+        sendToUI({ type: 'LAST_PROJECT_DATA', payload: { projectId } });
+        break;
+      }
+
       default: {
         const _exhaustive: never = msg;
         console.warn('Unknown message type:', (_exhaustive as any).type);

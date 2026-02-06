@@ -9,7 +9,9 @@ export type UIMessage =
   | { type: 'CLEAR_AUTH' }
   | { type: 'GET_STORED_AUTH' }
   | { type: 'STORE_SETTING'; payload: { key: string; value: unknown } }
-  | { type: 'GET_SETTINGS' };
+  | { type: 'GET_SETTINGS' }
+  | { type: 'STORE_LAST_PROJECT'; payload: { projectId: string } }
+  | { type: 'GET_LAST_PROJECT' };
 
 export interface AuthPayload {
   access_token: string;
@@ -29,6 +31,8 @@ export type PluginMessage =
   | { type: 'AUTH_CLEARED' }
   | { type: 'SETTINGS_DATA'; payload: RunnerSettings }
   | { type: 'SETTING_STORED' }
+  | { type: 'LAST_PROJECT_STORED' }
+  | { type: 'LAST_PROJECT_DATA'; payload: { projectId: string | null } }
   | { type: 'ERROR'; payload: { message: string; source: string } };
 
 // --- Settings ---
