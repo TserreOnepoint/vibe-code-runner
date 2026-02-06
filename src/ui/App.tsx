@@ -105,10 +105,11 @@ const App: FunctionalComponent = () => {
       );
 
     case 'projects':
+      if (!auth.user) return null;
       return (
         <ProjectList
-          userId={auth.user!.id}
-          userEmail={auth.user!.email}
+          userId={auth.user.id}
+          userEmail={auth.user.email}
           projects={projectsHook.projects}
           loading={projectsHook.loading}
           error={projectsHook.error}
