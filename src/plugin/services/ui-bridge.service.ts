@@ -2,8 +2,8 @@
 // ui-bridge.service.ts - Figma API proxy for loaded plugins (US-RUN-05)
 //
 // Creates a Proxy that intercepts plugin calls to figma.showUI(),
-// figma.ui.postMessage(), figma.ui.onmessage, etc. and routes them
-// through the Runner's message system.
+// figma.ui.postMessage(), figma.ui.onmessage, figma.closePlugin(), etc.
+// and routes them through the Runner's message system.
 //
 // IMPORTANT: The Proxy uses an empty object {} as its target instead
 // of the real `figma` global. This avoids the "proxy: inconsistent get"
@@ -24,6 +24,7 @@ const MAX_HTML_SIZE = 1_000_000; // 1MB
 export interface UIBridgeCallbacks {
   sendToUI: (msg: PluginMessage) => void;
   getExecutionId: () => string | null;
+  onClosePlugin?: () => void;
 }
 
 // Plugin's registered onmessage handler (captured via proxy setter)
@@ -147,12 +148,23 @@ export function createFigmaProxy(callbacks: UIBridgeCallbacks): typeof figma {
         };
       }
 
+      // figma.closePlugin -> intercept: do NOT close the Runner, trigger callback
+      if (prop === 'closePlugin') {
+        return (_message?: string) => {
+          if (callbacks.onClosePlugin) {
+            callbacks.onClosePlugin();
+          }
+          // Intentionally NOT forwarding to real figma.closePlugin()
+          // — that would close the Runner itself.
+        };
+      }
+
       // figma.ui -> return our proxy
       if (prop === 'ui') {
         return uiProxy;
       }
 
-      // Everything else (createRectangle, currentPage, notify, closePlugin, etc.)
+      // Everything else (createRectangle, currentPage, notify, etc.)
       // -> forward to real figma, binding methods so `this` is correct
       const val = (figma as any)[prop];
       if (typeof val === 'function') {
@@ -190,7 +202,7 @@ export function dispatchToPlugin(data: unknown): void {
 
 /**
  * Reset bridge state (clear plugin's handler reference).
- * Called during executor cleanup.
+ * Called during full cleanup.
  */
 export function reset(): void {
   pluginOnMessageHandler = null;

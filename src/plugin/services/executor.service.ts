@@ -40,7 +40,12 @@ export interface ExecutorCallbacks {
  * - Passes proxy as `figma` parameter to new Function (shadows global)
  * - Injects __html__ for Figma build-time compatibility
  * - Enforces 60s timeout
- * - Cleans up after execution
+ *
+ * After synchronous/async completion, only a soft cleanup is performed
+ * (console restore + timeout clear). The bridge and executionId remain
+ * alive so plugin UI handlers (onmessage) keep working.
+ * Full cleanup happens on stop(), error, timeout, closePlugin,
+ * or when a new execute() is called.
  */
 export function execute(
   codeJs: string,
@@ -48,16 +53,9 @@ export function execute(
   projectId: string,
   callbacks: ExecutorCallbacks,
 ): void {
-  // Prevent concurrent executions
+  // If a previous execution is still registered, fully clean it up first
   if (currentExecutionId) {
-    callbacks.sendToUI({
-      type: 'EXECUTION_ERROR',
-      payload: {
-        executionId: currentExecutionId,
-        message: 'Une execution est deja en cours',
-      },
-    });
-    return;
+    fullCleanup();
   }
 
   const executionId = uuidv4();
@@ -90,13 +88,29 @@ export function execute(
   const figmaProxy = uiBridge.createFigmaProxy({
     sendToUI: callbacks.sendToUI,
     getExecutionId: () => currentExecutionId,
+    onClosePlugin: () => {
+      // Plugin called figma.closePlugin() — end the execution gracefully
+      if (currentExecutionId === executionId && !aborted) {
+        const duration = Date.now() - startTime;
+        // Send UI close first, then done
+        callbacks.sendToUI({
+          type: 'PLUGIN_UI_CLOSE',
+          payload: { executionId },
+        });
+        fullCleanup();
+        callbacks.sendToUI({
+          type: 'EXECUTION_DONE',
+          payload: { executionId, duration },
+        });
+      }
+    },
   });
 
   // Set timeout (60s max)
   timeoutHandle = setTimeout(() => {
     if (currentExecutionId === executionId && !aborted) {
       aborted = true;
-      cleanup();
+      fullCleanup();
       callbacks.sendToUI({
         type: 'EXECUTION_ERROR',
         payload: {
@@ -131,7 +145,8 @@ export function execute(
         .then(() => {
           if (!aborted && currentExecutionId === executionId) {
             const duration = Date.now() - startTime;
-            cleanup();
+            // Soft cleanup: keep bridge alive for UI interactions
+            softCleanup();
             callbacks.sendToUI({
               type: 'EXECUTION_DONE',
               payload: { executionId, duration },
@@ -140,7 +155,7 @@ export function execute(
         })
         .catch((err: unknown) => {
           if (!aborted && currentExecutionId === executionId) {
-            cleanup();
+            fullCleanup();
             const { message, stack } = extractError(err);
             callbacks.sendToUI({
               type: 'EXECUTION_ERROR',
@@ -152,7 +167,8 @@ export function execute(
       // Synchronous execution completed
       if (!aborted && currentExecutionId === executionId) {
         const duration = Date.now() - startTime;
-        cleanup();
+        // Soft cleanup: keep bridge alive for UI interactions
+        softCleanup();
         callbacks.sendToUI({
           type: 'EXECUTION_DONE',
           payload: { executionId, duration },
@@ -161,7 +177,7 @@ export function execute(
     }
   } catch (err) {
     if (!aborted && currentExecutionId === executionId) {
-      cleanup();
+      fullCleanup();
       const { message, stack } = extractError(err);
       callbacks.sendToUI({
         type: 'EXECUTION_ERROR',
@@ -180,7 +196,7 @@ export function stop(callbacks: ExecutorCallbacks): void {
 
   const executionId = currentExecutionId;
   aborted = true;
-  cleanup();
+  fullCleanup();
 
   callbacks.sendToUI({
     type: 'EXECUTION_DONE',
@@ -204,13 +220,25 @@ export function getExecutionId(): string | null {
 
 // --- Internal helpers ---
 
-function cleanup(): void {
+/**
+ * Soft cleanup: restore console + clear timeout only.
+ * Keeps bridge and executionId alive so plugin UI handlers keep working.
+ */
+function softCleanup(): void {
   consoleService.restore();
-  uiBridge.reset();
   if (timeoutHandle !== null) {
     clearTimeout(timeoutHandle);
     timeoutHandle = null;
   }
+}
+
+/**
+ * Full cleanup: soft cleanup + reset bridge + clear execution state.
+ * Used on stop, error, timeout, closePlugin, or before a new execution.
+ */
+function fullCleanup(): void {
+  softCleanup();
+  uiBridge.reset();
   currentExecutionId = null;
   aborted = false;
 }
