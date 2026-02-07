@@ -186,6 +186,8 @@ const App: FunctionalComponent = () => {
           logs={executionHook.logs}
           duration={executionHook.duration}
           error={executionHook.error}
+          pluginUI={executionHook.pluginUI}
+          pluginIframeRef={executionHook.pluginIframeRef}
           onExecute={handleExecute}
           onStop={executionHook.stop}
           onReset={executionHook.reset}

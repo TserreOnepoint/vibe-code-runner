@@ -72,6 +72,24 @@ export interface LogEntry {
   timestamp: number;
 }
 
+// --- Plugin UI state (US-RUN-05) ---
+
+export interface PluginUIState {
+  visible: boolean;
+  html: string | null;
+  width: number;
+  height: number;
+  title: string;
+}
+
+export const DEFAULT_PLUGIN_UI: PluginUIState = {
+  visible: false,
+  html: null,
+  width: 300,
+  height: 400,
+  title: '',
+};
+
 export interface Settings {
   supabaseUrl: string;
   supabaseAnonKey: string;

@@ -1,10 +1,11 @@
 // ============================================================
-// executor.service.ts - Dynamic plugin execution (US-RUN-04)
+// executor.service.ts - Dynamic plugin execution (US-RUN-04/05)
 // Runs in code.js sandbox: has figma.* API, NO DOM, NO fetch
 // ============================================================
 
 import * as consoleService from './console.service';
 import type { CapturedLog } from './console.service';
+import * as uiBridge from './ui-bridge.service';
 import type { PluginMessage } from '../types/messages.types';
 
 const EXECUTION_TIMEOUT_MS = 60_000; // 60 seconds
@@ -35,8 +36,9 @@ export interface ExecutorCallbacks {
  * Execute plugin code dynamically.
  * - Generates a unique execution_id
  * - Overrides console to capture logs
- * - Injects __html__ (Figma build-time variable) with ui.html content
- * - Wraps code in new Function() with try/catch
+ * - Creates a figma Proxy to intercept showUI/ui.* calls (US-RUN-05)
+ * - Passes proxy as `figma` parameter to new Function (shadows global)
+ * - Injects __html__ for Figma build-time compatibility
  * - Enforces 60s timeout
  * - Cleans up after execution
  */
@@ -83,6 +85,13 @@ export function execute(
     });
   });
 
+  // Create figma Proxy (US-RUN-05): intercepts showUI, ui.postMessage, ui.onmessage, etc.
+  // Passed as parameter to new Function('figma', code) to shadow the global without touching it.
+  const figmaProxy = uiBridge.createFigmaProxy({
+    sendToUI: callbacks.sendToUI,
+    getExecutionId: () => currentExecutionId,
+  });
+
   // Set timeout (60s max)
   timeoutHandle = setTimeout(() => {
     if (currentExecutionId === executionId && !aborted) {
@@ -98,11 +107,9 @@ export function execute(
     }
   }, EXECUTION_TIMEOUT_MS);
 
-  // Execute in next microtask to not block the message handler
   try {
-    // Wrap code in a function to isolate scope.
     // Inject __html__ (Figma build-time variable) so plugin code can call figma.showUI(__html__).
-    // figma.* is already global in the Figma sandbox.
+    // The 'figma' parameter shadows the global — plugin sees our proxy, Runner keeps the real one.
     const escapedHtml = uiHtml.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     const wrappedCode = `
       "use strict";
@@ -114,8 +121,9 @@ export function execute(
       }
     `;
 
-    const execFn = new Function(wrappedCode);
-    const result = execFn();
+    // Pass figmaProxy as the 'figma' parameter — shadows global figma inside the function
+    const execFn = new Function('figma', wrappedCode);
+    const result = execFn(figmaProxy);
 
     // Handle async plugin code (returns a Promise)
     if (result && typeof result.then === 'function') {
@@ -198,6 +206,7 @@ export function getExecutionId(): string | null {
 
 function cleanup(): void {
   consoleService.restore();
+  uiBridge.reset();
   if (timeoutHandle !== null) {
     clearTimeout(timeoutHandle);
     timeoutHandle = null;

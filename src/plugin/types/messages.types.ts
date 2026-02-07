@@ -13,7 +13,8 @@ export type UIMessage =
   | { type: 'STORE_LAST_PROJECT'; payload: { projectId: string } }
   | { type: 'GET_LAST_PROJECT' }
   | { type: 'EXECUTE_PLUGIN'; payload: { codeJs: string; uiHtml: string; projectId: string } }
-  | { type: 'STOP_EXECUTION' };
+  | { type: 'STOP_EXECUTION' }
+  | { type: 'PLUGIN_UI_MESSAGE'; payload: { executionId: string; data: unknown } };
 
 export interface AuthPayload {
   access_token: string;
@@ -39,6 +40,10 @@ export type PluginMessage =
   | { type: 'EXECUTION_LOG'; payload: { executionId: string; level: 'info' | 'warn' | 'error'; message: string; timestamp: number } }
   | { type: 'EXECUTION_DONE'; payload: { executionId: string; duration: number } }
   | { type: 'EXECUTION_ERROR'; payload: { executionId: string; message: string; stack?: string } }
+  | { type: 'PLUGIN_SHOW_UI'; payload: { executionId: string; html: string; width: number; height: number; visible: boolean; title: string } }
+  | { type: 'PLUGIN_UI_POST_MESSAGE'; payload: { executionId: string; data: unknown } }
+  | { type: 'PLUGIN_UI_RESIZE'; payload: { executionId: string; width: number; height: number } }
+  | { type: 'PLUGIN_UI_CLOSE'; payload: { executionId: string } }
   | { type: 'ERROR'; payload: { message: string; source: string } };
 
 // --- Settings ---

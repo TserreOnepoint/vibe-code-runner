@@ -7,6 +7,7 @@ import type { UIMessage, PluginMessage } from './types/messages.types';
 import { DEFAULT_SETTINGS } from './types/messages.types';
 import * as authService from './services/auth.service';
 import * as executorService from './services/executor.service';
+import * as uiBridge from './services/ui-bridge.service';
 
 // --- Show UI ---
 
@@ -100,6 +101,12 @@ async function handleMessage(msg: UIMessage): Promise<void> {
 
       case 'STOP_EXECUTION': {
         executorService.stop(executorCallbacks);
+        break;
+      }
+
+      case 'PLUGIN_UI_MESSAGE': {
+        // Forward message from plugin iframe (via Runner UI) to plugin's onmessage handler
+        uiBridge.dispatchToPlugin(msg.payload.data);
         break;
       }
 
