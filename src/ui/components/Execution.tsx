@@ -1,5 +1,10 @@
 // ============================================================
-// Execution.tsx - US-RUN-04/05 : execution screen with plugin UI iframe
+// Execution.tsx - US-RUN-04/05 : execution screen
+//
+// Layout:
+//   - Plugin UI visible: iframe at real dimensions, FAB bottom-right,
+//     overlay panel with console + controls (back, reload, stop)
+//   - No plugin UI / idle: compact control panel
 // ============================================================
 
 import { h, FunctionalComponent } from 'preact';
@@ -8,8 +13,6 @@ import { useState, useEffect, useRef, useCallback } from 'preact/hooks';
 import type { ExecutionStatus, LogEntry, ParsedBundle, Project, PluginUIState } from '../../plugin/types/runner.types';
 import { sendToPlugin } from '../hooks/useMessaging';
 import { ErrorBanner } from './ErrorBanner';
-
-type Tab = 'plugin' | 'console';
 
 interface Props {
   project: Project;
@@ -71,6 +74,48 @@ const LOG_LEVEL_LABELS: Record<string, string> = {
   error: 'ERR',
 };
 
+// --- Inline SVG icons (no lucide in Preact bundle) ---
+
+const TerminalIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="4 17 10 11 4 5" />
+    <line x1="12" y1="19" x2="20" y2="19" />
+  </svg>
+);
+
+const ArrowLeftIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="19" y1="12" x2="5" y2="12" />
+    <polyline points="12 19 5 12 12 5" />
+  </svg>
+);
+
+const RefreshIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="23 4 23 10 17 10" />
+    <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+  </svg>
+);
+
+const StopIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+  </svg>
+);
+
+const XIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </svg>
+);
+
+const PlayIcon = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="5 3 19 12 5 21 5 3" />
+  </svg>
+);
+
 export const Execution: FunctionalComponent<Props> = ({
   project,
   bundle,
@@ -87,35 +132,28 @@ export const Execution: FunctionalComponent<Props> = ({
   onBack,
 }) => {
   const logsEndRef = useRef<HTMLDivElement>(null);
-  const hasPluginUI = pluginUI.html !== null;
-  const [activeTab, setActiveTab] = useState<Tab>('console');
+  const [overlayOpen, setOverlayOpen] = useState(false);
+  const hasPluginUI = pluginUI.html !== null && pluginUI.visible;
+  const isRunning = status === 'running' || status === 'loading';
+  const canExecute = status === 'idle' || status === 'done' || status === 'error' || status === 'stopped';
 
-  // Auto-switch to plugin tab when plugin UI is shown
+  // Auto-scroll logs in overlay
   useEffect(() => {
-    if (hasPluginUI && pluginUI.visible) {
-      setActiveTab('plugin');
-    }
-  }, [hasPluginUI, pluginUI.visible]);
-
-  // Auto-scroll logs to bottom
-  useEffect(() => {
-    if (activeTab === 'console') {
+    if (overlayOpen) {
       logsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [logs.length, activeTab]);
+  }, [logs.length, overlayOpen]);
 
   // Listen for messages from plugin iframe -> forward to code.js
   useEffect(() => {
     if (!hasPluginUI) return;
 
     const handleIframeMessage = (event: MessageEvent) => {
-      // Only handle messages from our plugin iframe
       const iframe = pluginIframeRef.current;
       if (!iframe || event.source !== iframe.contentWindow) return;
 
       const pluginMessage = event.data?.pluginMessage;
       if (pluginMessage !== undefined && executionId) {
-        // Forward to controller (code.js) which dispatches to plugin's onmessage
         sendToPlugin({
           type: 'PLUGIN_UI_MESSAGE',
           payload: { executionId, data: pluginMessage },
@@ -127,25 +165,157 @@ export const Execution: FunctionalComponent<Props> = ({
     return () => window.removeEventListener('message', handleIframeMessage);
   }, [hasPluginUI, executionId, pluginIframeRef]);
 
-  const isRunning = status === 'running' || status === 'loading';
-  const canExecute = status === 'idle' || status === 'done' || status === 'error' || status === 'stopped';
+  // Close overlay when going back to idle
+  useEffect(() => {
+    if (status === 'idle') setOverlayOpen(false);
+  }, [status]);
 
+  const handleReload = useCallback(() => {
+    setOverlayOpen(false);
+    onExecute();
+  }, [onExecute]);
+
+  const handleBack = useCallback(() => {
+    setOverlayOpen(false);
+    onBack();
+  }, [onBack]);
+
+  // --- Console logs renderer ---
+  const renderLogs = () => (
+    <div class="exec-overlay-logs">
+      {logs.length === 0 ? (
+        <div class="exec-logs-empty">Aucun log.</div>
+      ) : (
+        logs.map((log, i) => (
+          <div key={i} class="exec-log-entry" style={{ color: LOG_LEVEL_COLORS[log.level] }}>
+            <span class="exec-log-time">{formatTimestamp(log.timestamp)}</span>
+            <span class="exec-log-level">{LOG_LEVEL_LABELS[log.level]}</span>
+            <span class="exec-log-msg">{log.message}</span>
+          </div>
+        ))
+      )}
+      <div ref={logsEndRef} />
+    </div>
+  );
+
+  // --- Overlay panel ---
+  const renderOverlay = () => (
+    <div class="exec-overlay-backdrop" onClick={() => setOverlayOpen(false)}>
+      <div class="exec-overlay-panel" onClick={(e: Event) => e.stopPropagation()}>
+        {/* Overlay header */}
+        <div class="exec-overlay-header">
+          <div class="exec-overlay-title">
+            <span class="exec-overlay-project">{project.name}</span>
+            <div class="exec-overlay-status">
+              <span
+                class="exec-status-dot"
+                style={{
+                  background: STATUS_COLORS[status],
+                  boxShadow: isRunning ? `0 0 6px ${STATUS_COLORS[status]}` : 'none',
+                }}
+              />
+              <span style={{ color: STATUS_COLORS[status] }}>{STATUS_LABELS[status]}</span>
+              {duration !== null && duration >= 0 && (
+                <span class="exec-overlay-duration">{formatDuration(duration)}</span>
+              )}
+            </div>
+          </div>
+          <button class="exec-overlay-close" onClick={() => setOverlayOpen(false)} title="Fermer">
+            <XIcon />
+          </button>
+        </div>
+
+        {/* Error */}
+        {error && (
+          <div style={{ padding: '0 var(--space-md)' }}>
+            <ErrorBanner message={error} onDismiss={onReset} />
+          </div>
+        )}
+
+        {/* Console */}
+        <div class="exec-overlay-console-header">
+          <span>Console</span>
+          <span class="exec-overlay-log-count">{logs.length}</span>
+        </div>
+        {renderLogs()}
+
+        {/* Actions */}
+        <div class="exec-overlay-actions">
+          <button class="exec-overlay-btn exec-overlay-btn-back" onClick={handleBack} disabled={isRunning} title="Retour projets">
+            <ArrowLeftIcon />
+            <span>Projets</span>
+          </button>
+          {canExecute && (
+            <button class="exec-overlay-btn exec-overlay-btn-reload" onClick={handleReload} title="Recharger le plugin">
+              <RefreshIcon />
+              <span>Recharger</span>
+            </button>
+          )}
+          {isRunning && (
+            <button class="exec-overlay-btn exec-overlay-btn-stop" onClick={onStop} title="Arreter">
+              <StopIcon />
+              <span>Arreter</span>
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+
+  // ============================
+  // Plugin UI visible: fullscreen iframe + FAB
+  // ============================
+  if (hasPluginUI) {
+    return (
+      <div class="exec-fullscreen">
+        <div class="exec-iframe-wrapper">
+          <iframe
+            ref={pluginIframeRef}
+            class="exec-plugin-iframe"
+            srcDoc={pluginUI.html!}
+            sandbox="allow-scripts allow-forms"
+            style={{
+              width: `${pluginUI.width}px`,
+              height: `${pluginUI.height}px`,
+            }}
+            title={pluginUI.title || 'Plugin UI'}
+          />
+        </div>
+
+        {/* FAB */}
+        <button
+          class={`exec-fab ${overlayOpen ? 'exec-fab-active' : ''}`}
+          onClick={() => setOverlayOpen(!overlayOpen)}
+          title="Console & controles"
+        >
+          <TerminalIcon />
+          {logs.length > 0 && !overlayOpen && (
+            <span class="exec-fab-badge">{logs.length > 99 ? '99+' : logs.length}</span>
+          )}
+        </button>
+
+        {/* Overlay */}
+        {overlayOpen && renderOverlay()}
+      </div>
+    );
+  }
+
+  // ============================
+  // No plugin UI / idle: compact control view
+  // ============================
   return (
     <div class="screen" style={{ gap: 0, padding: 0 }}>
-      {/* Header */}
-      <div style={{ padding: 'var(--space-lg) var(--space-lg) 0' }}>
-        <div class="screen-header">
-          <div class="exec-top-row">
-            <button class="btn btn-ghost" onClick={onBack} disabled={isRunning}>
-              &larr;
-            </button>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div class="screen-title" style={{ fontSize: 'var(--font-size-lg)', marginBottom: 0 }}>
-                {project.name}
-              </div>
-              <div class="screen-subtitle">
-                {bundle.files.length} fichier{bundle.files.length > 1 ? 's' : ''} &middot; {bundle.manifest.name}
-              </div>
+      <div style={{ padding: 'var(--space-lg)' }}>
+        <div class="exec-top-row" style={{ marginBottom: 'var(--space-md)' }}>
+          <button class="btn btn-ghost" onClick={onBack} disabled={isRunning}>
+            &larr;
+          </button>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div class="screen-title" style={{ fontSize: 'var(--font-size-lg)', marginBottom: 0 }}>
+              {project.name}
+            </div>
+            <div class="screen-subtitle">
+              {bundle.files.length} fichier{bundle.files.length > 1 ? 's' : ''} &middot; {bundle.manifest.name}
             </div>
           </div>
         </div>
@@ -174,92 +344,45 @@ export const Execution: FunctionalComponent<Props> = ({
           )}
         </div>
 
-        {/* Error banner */}
         {error && <ErrorBanner message={error} onDismiss={onReset} />}
 
-        {/* Action buttons */}
         <div class="exec-actions">
           {canExecute && (
             <button class="btn btn-primary btn-full" onClick={onExecute}>
+              <PlayIcon />
               {status === 'idle' ? 'Executer' : 'Re-executer'}
             </button>
           )}
           {isRunning && (
             <button class="btn btn-danger btn-full" onClick={onStop}>
+              <StopIcon />
               Arreter
             </button>
           )}
         </div>
-
-        {/* Tabs: Plugin UI / Console (only show tabs if plugin has UI) */}
-        {hasPluginUI && (
-          <div class="exec-tabs">
-            <button
-              class={`exec-tab ${activeTab === 'plugin' ? 'exec-tab-active' : ''}`}
-              onClick={() => setActiveTab('plugin')}
-            >
-              Plugin UI
-              {pluginUI.title ? ` - ${pluginUI.title}` : ''}
-            </button>
-            <button
-              class={`exec-tab ${activeTab === 'console' ? 'exec-tab-active' : ''}`}
-              onClick={() => setActiveTab('console')}
-            >
-              Console
-              {logs.length > 0 && (
-                <span class="exec-tab-badge">{logs.length}</span>
-              )}
-            </button>
-          </div>
-        )}
       </div>
 
-      {/* Tab content area */}
-      <div class="exec-tab-content">
-        {/* Plugin UI iframe (US-RUN-05) */}
-        {hasPluginUI && activeTab === 'plugin' && (
-          <div class="exec-plugin-ui-container">
-            <iframe
-              ref={pluginIframeRef}
-              class="exec-plugin-iframe"
-              srcDoc={pluginUI.html!}
-              sandbox="allow-scripts allow-forms"
-              style={{
-                width: '100%',
-                height: `${pluginUI.height}px`,
-                maxHeight: '100%',
-              }}
-              title={pluginUI.title || 'Plugin UI'}
-            />
-          </div>
-        )}
-
-        {/* Console (logs) - shown when console tab active OR when no plugin UI */}
-        {(activeTab === 'console' || !hasPluginUI) && (
-          <div class="exec-console-panel">
-            {!hasPluginUI && (
-              <div class="exec-logs-header">
-                <span>Console</span>
-                <span class="exec-logs-count">{logs.length}</span>
-              </div>
-            )}
-            <div class="exec-logs">
-              {logs.length === 0 && !isRunning && (
-                <div class="exec-logs-empty">
-                  Aucun log. Lancez l'execution pour voir la sortie console.
-                </div>
-              )}
-              {logs.map((log, i) => (
-                <div key={i} class="exec-log-entry" style={{ color: LOG_LEVEL_COLORS[log.level] }}>
-                  <span class="exec-log-time">{formatTimestamp(log.timestamp)}</span>
-                  <span class="exec-log-level">{LOG_LEVEL_LABELS[log.level]}</span>
-                  <span class="exec-log-msg">{log.message}</span>
-                </div>
-              ))}
-              <div ref={logsEndRef} />
+      {/* Console */}
+      <div class="exec-console-panel">
+        <div class="exec-logs-header">
+          <span>Console</span>
+          <span class="exec-logs-count">{logs.length}</span>
+        </div>
+        <div class="exec-logs">
+          {logs.length === 0 && !isRunning && (
+            <div class="exec-logs-empty">
+              Aucun log. Lancez l'execution pour voir la sortie console.
             </div>
-          </div>
-        )}
+          )}
+          {logs.map((log, i) => (
+            <div key={i} class="exec-log-entry" style={{ color: LOG_LEVEL_COLORS[log.level] }}>
+              <span class="exec-log-time">{formatTimestamp(log.timestamp)}</span>
+              <span class="exec-log-level">{LOG_LEVEL_LABELS[log.level]}</span>
+              <span class="exec-log-msg">{log.message}</span>
+            </div>
+          ))}
+          <div ref={logsEndRef} />
+        </div>
       </div>
     </div>
   );
