@@ -10,6 +10,10 @@ import type { PluginMessage } from '../types/messages.types';
 
 const EXECUTION_TIMEOUT_MS = 60_000; // 60 seconds
 
+// Default Runner plugin window dimensions (must match controller.ts showUI call)
+const RUNNER_DEFAULT_WIDTH = 360;
+const RUNNER_DEFAULT_HEIGHT = 480;
+
 // --- Active execution state ---
 
 let currentExecutionId: string | null = null;
@@ -43,9 +47,8 @@ export interface ExecutorCallbacks {
  *
  * After synchronous/async completion, only a soft cleanup is performed
  * (console restore + timeout clear). The bridge and executionId remain
- * alive so plugin UI handlers (onmessage) keep working.
- * Full cleanup happens on stop(), error, timeout, closePlugin,
- * or when a new execute() is called.
+ * alive so plugin UI interactions (onmessage handlers) keep working.
+ * Full cleanup happens on stop(), error, or when a new execute() is called.
  */
 export function execute(
   codeJs: string,
@@ -88,6 +91,14 @@ export function execute(
   const figmaProxy = uiBridge.createFigmaProxy({
     sendToUI: callbacks.sendToUI,
     getExecutionId: () => currentExecutionId,
+    onResizeRunner: (width: number, height: number) => {
+      // Resize the real Runner plugin window to match the loaded plugin's UI dimensions
+      try {
+        figma.ui.resize(width, height);
+      } catch (e) {
+        // Ignore resize errors (e.g. if running outside Figma)
+      }
+    },
     onClosePlugin: () => {
       // Plugin called figma.closePlugin() — end the execution gracefully
       if (currentExecutionId === executionId && !aborted) {

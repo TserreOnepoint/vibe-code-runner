@@ -41,6 +41,8 @@ const App: FunctionalComponent = () => {
   // --- Back to projects (from execution or on bundle error) ---
 
   const handleBackToProjects = useCallback(() => {
+    // Restore Runner plugin window to default dimensions
+    sendToPlugin({ type: 'RESTORE_RUNNER_SIZE' });
     executionHook.reset();
     bundleHook.reset();
     setScreen('projects');

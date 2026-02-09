@@ -4,14 +4,14 @@
 // ============================================================
 
 import type { UIMessage, PluginMessage } from './types/messages.types';
-import { DEFAULT_SETTINGS } from './types/messages.types';
+import { DEFAULT_SETTINGS, RUNNER_DEFAULT_WIDTH, RUNNER_DEFAULT_HEIGHT } from './types/messages.types';
 import * as authService from './services/auth.service';
 import * as executorService from './services/executor.service';
 import * as uiBridge from './services/ui-bridge.service';
 
 // --- Show UI ---
 
-figma.showUI(__html__, { width: 360, height: 480 });
+figma.showUI(__html__, { width: RUNNER_DEFAULT_WIDTH, height: RUNNER_DEFAULT_HEIGHT });
 
 // --- Send message to UI (typesafe) ---
 
@@ -107,6 +107,16 @@ async function handleMessage(msg: UIMessage): Promise<void> {
       case 'PLUGIN_UI_MESSAGE': {
         // Forward message from plugin iframe (via Runner UI) to plugin's onmessage handler
         uiBridge.dispatchToPlugin(msg.payload.data);
+        break;
+      }
+
+      case 'RESTORE_RUNNER_SIZE': {
+        // Restore Runner plugin window to default dimensions (called when navigating back to projects)
+        figma.ui.resize(RUNNER_DEFAULT_WIDTH, RUNNER_DEFAULT_HEIGHT);
+        // Clean up any lingering execution state
+        if (executorService.getExecutionId()) {
+          executorService.stop(executorCallbacks);
+        }
         break;
       }
 

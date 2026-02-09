@@ -25,6 +25,7 @@ export interface UIBridgeCallbacks {
   sendToUI: (msg: PluginMessage) => void;
   getExecutionId: () => string | null;
   onClosePlugin?: () => void;
+  onResizeRunner?: (width: number, height: number) => void;
 }
 
 // Plugin's registered onmessage handler (captured via proxy setter)
@@ -64,6 +65,12 @@ export function createFigmaProxy(callbacks: UIBridgeCallbacks): typeof figma {
         return (width: number, height: number) => {
           const executionId = callbacks.getExecutionId();
           if (!executionId) return;
+
+          // Also resize the Runner plugin window itself
+          if (callbacks.onResizeRunner) {
+            callbacks.onResizeRunner(width, height);
+          }
+
           callbacks.sendToUI({
             type: 'PLUGIN_UI_RESIZE',
             payload: { executionId, width, height },
@@ -140,6 +147,11 @@ export function createFigmaProxy(callbacks: UIBridgeCallbacks): typeof figma {
           const height = opts?.height ?? 400;
           const visible = opts?.visible !== false;
           const title = opts?.title ?? '';
+
+          // Resize the Runner plugin window to match the plugin UI dimensions
+          if (callbacks.onResizeRunner) {
+            callbacks.onResizeRunner(width, height);
+          }
 
           callbacks.sendToUI({
             type: 'PLUGIN_SHOW_UI',

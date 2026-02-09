@@ -14,7 +14,8 @@ export type UIMessage =
   | { type: 'GET_LAST_PROJECT' }
   | { type: 'EXECUTE_PLUGIN'; payload: { codeJs: string; uiHtml: string; projectId: string } }
   | { type: 'STOP_EXECUTION' }
-  | { type: 'PLUGIN_UI_MESSAGE'; payload: { executionId: string; data: unknown } };
+  | { type: 'PLUGIN_UI_MESSAGE'; payload: { executionId: string; data: unknown } }
+  | { type: 'RESTORE_RUNNER_SIZE' };
 
 export interface AuthPayload {
   access_token: string;
@@ -61,3 +62,7 @@ export const DEFAULT_SETTINGS: RunnerSettings = {
   debugMode: false,
   autoReconnect: true,
 };
+
+// Default Runner plugin window dimensions
+export const RUNNER_DEFAULT_WIDTH = 360;
+export const RUNNER_DEFAULT_HEIGHT = 480;
