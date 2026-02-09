@@ -70,6 +70,8 @@ export interface LogEntry {
   level: 'info' | 'warn' | 'error';
   message: string;
   timestamp: number;
+  source?: 'console' | 'error' | 'unhandled';
+  stackTrace?: string;
 }
 
 // --- Plugin UI state (US-RUN-05) ---

@@ -38,7 +38,7 @@ export type PluginMessage =
   | { type: 'LAST_PROJECT_STORED' }
   | { type: 'LAST_PROJECT_DATA'; payload: { projectId: string | null } }
   | { type: 'EXECUTION_STARTED'; payload: { executionId: string; projectId: string } }
-  | { type: 'EXECUTION_LOG'; payload: { executionId: string; level: 'info' | 'warn' | 'error'; message: string; timestamp: number } }
+  | { type: 'EXECUTION_LOG'; payload: { executionId: string; level: 'info' | 'warn' | 'error'; message: string; timestamp: number; source?: 'console' | 'error' | 'unhandled'; stackTrace?: string } }
   | { type: 'EXECUTION_DONE'; payload: { executionId: string; duration: number } }
   | { type: 'EXECUTION_ERROR'; payload: { executionId: string; message: string; stack?: string } }
   | { type: 'PLUGIN_SHOW_UI'; payload: { executionId: string; html: string; width: number; height: number; visible: boolean; title: string } }

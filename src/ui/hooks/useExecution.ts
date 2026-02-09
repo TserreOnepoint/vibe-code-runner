@@ -1,13 +1,19 @@
 // ============================================================
-// useExecution.ts - Manage execution + plugin UI state (US-RUN-04/05)
+// useExecution.ts - Manage execution + plugin UI state (US-RUN-04/05/06)
+//
+// US-RUN-06 additions:
+//   - Integrates logs-streamer for Realtime broadcast + batch insert
+//   - Captures window.onerror + unhandledrejection as error logs
+//   - MAX_LOGS raised to 1000 (matches console.service cap)
 // ============================================================
 
-import { useState, useCallback, useRef } from 'preact/hooks';
+import { useState, useCallback, useRef, useEffect } from 'preact/hooks';
 import type { Ref } from 'preact';
 import type { ExecutionStatus, LogEntry, PluginUIState } from '../../plugin/types/runner.types';
 import { DEFAULT_PLUGIN_UI } from '../../plugin/types/runner.types';
 import type { PluginMessage } from '../../plugin/types/messages.types';
 import { sendToPlugin } from './useMessaging';
+import * as logsStreamer from '../lib/logs-streamer';
 
 interface UseExecutionReturn {
   status: ExecutionStatus;
@@ -22,9 +28,10 @@ interface UseExecutionReturn {
   reset: () => void;
   handlePluginMessage: (msg: PluginMessage) => boolean;
   sendToPluginIframe: (data: unknown) => void;
+  setSupabaseUrl: (url: string) => void;
 }
 
-const MAX_LOGS = 500;
+const MAX_LOGS = 1000;
 
 export function useExecution(): UseExecutionReturn {
   const [status, setStatus] = useState<ExecutionStatus>('idle');
@@ -35,6 +42,11 @@ export function useExecution(): UseExecutionReturn {
   const [pluginUI, setPluginUI] = useState<PluginUIState>(DEFAULT_PLUGIN_UI);
   const pluginIframeRef = useRef<HTMLIFrameElement>(null);
 
+  // Refs for current execution context (used by error handlers)
+  const executionIdRef = useRef<string | null>(null);
+  const projectIdRef = useRef<string | null>(null);
+  const supabaseUrlRef = useRef<string>('');
+
   const start = useCallback((codeJs: string, uiHtml: string, projectId: string) => {
     setStatus('loading');
     setLogs([]);
@@ -42,6 +54,7 @@ export function useExecution(): UseExecutionReturn {
     setError(null);
     setExecutionId(null);
     setPluginUI(DEFAULT_PLUGIN_UI);
+    projectIdRef.current = projectId;
     sendToPlugin({ type: 'EXECUTE_PLUGIN', payload: { codeJs, uiHtml, projectId } });
   }, []);
 
@@ -50,6 +63,10 @@ export function useExecution(): UseExecutionReturn {
   }, []);
 
   const reset = useCallback(() => {
+    // Stop streamer if active
+    logsStreamer.stopStream();
+    executionIdRef.current = null;
+    projectIdRef.current = null;
     setStatus('idle');
     setExecutionId(null);
     setLogs([]);
@@ -70,40 +87,125 @@ export function useExecution(): UseExecutionReturn {
   }, []);
 
   /**
+   * Internal: add a log entry to state + push to streamer.
+   */
+  const addLog = useCallback((entry: LogEntry) => {
+    setLogs((prev) => {
+      const next = [...prev, entry];
+      return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
+    });
+    // Push to Realtime + buffer for batch insert
+    logsStreamer.pushLog(entry);
+  }, []);
+
+  // --- US-RUN-06: Capture unhandled errors from window ---
+
+  useEffect(() => {
+    const handleError = (event: ErrorEvent) => {
+      // Only capture if an execution is active
+      if (!executionIdRef.current) return;
+
+      const entry: LogEntry = {
+        level: 'error',
+        message: `[Unhandled Error] ${event.message || 'Unknown error'}`,
+        timestamp: Date.now(),
+        source: 'unhandled',
+        stackTrace: event.error?.stack || `at ${event.filename}:${event.lineno}:${event.colno}`,
+      };
+      addLog(entry);
+    };
+
+    const handleRejection = (event: PromiseRejectionEvent) => {
+      if (!executionIdRef.current) return;
+
+      const reason = event.reason;
+      const message = reason instanceof Error ? reason.message : String(reason);
+      const stack = reason instanceof Error ? reason.stack : undefined;
+
+      const entry: LogEntry = {
+        level: 'error',
+        message: `[Unhandled Rejection] ${message}`,
+        timestamp: Date.now(),
+        source: 'unhandled',
+        stackTrace: stack,
+      };
+      addLog(entry);
+    };
+
+    window.addEventListener('error', handleError);
+    window.addEventListener('unhandledrejection', handleRejection);
+
+    return () => {
+      window.removeEventListener('error', handleError);
+      window.removeEventListener('unhandledrejection', handleRejection);
+    };
+  }, [addLog]);
+
+  /**
    * Handle execution-related and plugin UI messages.
    * Returns true if the message was handled, false otherwise.
    */
   const handlePluginMessage = useCallback((msg: PluginMessage): boolean => {
     switch (msg.type) {
-      case 'EXECUTION_STARTED':
-        setExecutionId(msg.payload.executionId);
+      case 'EXECUTION_STARTED': {
+        const { executionId: eid, projectId: pid } = msg.payload;
+        setExecutionId(eid);
+        executionIdRef.current = eid;
         setStatus('running');
         setLogs([]);
         setDuration(null);
         setError(null);
-        return true;
 
-      case 'EXECUTION_LOG':
-        setLogs((prev) => {
-          const entry: LogEntry = {
-            level: msg.payload.level,
-            message: msg.payload.message,
-            timestamp: msg.payload.timestamp,
-          };
-          const next = [...prev, entry];
-          return next.length > MAX_LOGS ? next.slice(-MAX_LOGS) : next;
-        });
+        // Resolve Supabase URL for streamer
+        // (supabaseUrlRef is set externally via setSupabaseUrl or from settings)
+        const url = supabaseUrlRef.current;
+        if (url && pid && eid) {
+          logsStreamer.startStream({
+            projectId: pid,
+            executionId: eid,
+            supabaseUrl: url,
+          });
+        }
         return true;
+      }
+
+      case 'EXECUTION_LOG': {
+        const entry: LogEntry = {
+          level: msg.payload.level,
+          message: msg.payload.message,
+          timestamp: msg.payload.timestamp,
+          source: msg.payload.source,
+          stackTrace: msg.payload.stackTrace,
+        };
+        addLog(entry);
+        return true;
+      }
 
       case 'EXECUTION_DONE':
         setDuration(msg.payload.duration);
         setStatus(msg.payload.duration === -1 ? 'stopped' : 'done');
+        executionIdRef.current = null;
+        // Stop streamer (flushes remaining buffer)
+        logsStreamer.stopStream();
         // Keep plugin UI visible after execution ends (plugin may still be interactive)
         return true;
 
       case 'EXECUTION_ERROR':
         setError(msg.payload.message);
         setStatus('error');
+        executionIdRef.current = null;
+        // Log the error itself as a log entry with stack trace
+        if (msg.payload.stack) {
+          addLog({
+            level: 'error',
+            message: msg.payload.message,
+            timestamp: Date.now(),
+            source: 'error',
+            stackTrace: msg.payload.stack,
+          });
+        }
+        // Stop streamer (flushes remaining buffer)
+        logsStreamer.stopStream();
         return true;
 
       // --- Plugin UI messages (US-RUN-05) ---
@@ -138,7 +240,14 @@ export function useExecution(): UseExecutionReturn {
       default:
         return false;
     }
-  }, [sendToPluginIframe]);
+  }, [sendToPluginIframe, addLog]);
+
+  /**
+   * Set the Supabase URL for the streamer (called from App.tsx when settings load).
+   */
+  const setSupabaseUrl = useCallback((url: string) => {
+    supabaseUrlRef.current = url;
+  }, []);
 
   return {
     status,
@@ -153,5 +262,6 @@ export function useExecution(): UseExecutionReturn {
     reset,
     handlePluginMessage,
     sendToPluginIframe,
+    setSupabaseUrl,
   };
 }

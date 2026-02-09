@@ -82,6 +82,8 @@ export function execute(
         level: log.level,
         message: log.message,
         timestamp: log.timestamp,
+        source: log.source,
+        stackTrace: log.stackTrace,
       },
     });
   });
@@ -100,7 +102,7 @@ export function execute(
       }
     },
     onClosePlugin: () => {
-      // Plugin called figma.closePlugin() — end the execution gracefully
+      // Plugin called figma.closePlugin() \u2014 end the execution gracefully
       if (currentExecutionId === executionId && !aborted) {
         const duration = Date.now() - startTime;
         // Send UI close first, then done
@@ -134,7 +136,7 @@ export function execute(
 
   try {
     // Inject __html__ (Figma build-time variable) so plugin code can call figma.showUI(__html__).
-    // The 'figma' parameter shadows the global — plugin sees our proxy, Runner keeps the real one.
+    // The 'figma' parameter shadows the global \u2014 plugin sees our proxy, Runner keeps the real one.
     const escapedHtml = uiHtml.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     const wrappedCode = `
       "use strict";
@@ -146,7 +148,7 @@ export function execute(
       }
     `;
 
-    // Pass figmaProxy as the 'figma' parameter — shadows global figma inside the function
+    // Pass figmaProxy as the 'figma' parameter \u2014 shadows global figma inside the function
     const execFn = new Function('figma', wrappedCode);
     const result = execFn(figmaProxy);
 

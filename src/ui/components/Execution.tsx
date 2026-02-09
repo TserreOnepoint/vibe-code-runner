@@ -74,6 +74,12 @@ const LOG_LEVEL_LABELS: Record<string, string> = {
   error: 'ERR',
 };
 
+const SOURCE_LABELS: Record<string, string> = {
+  console: '',
+  error: 'ERR',
+  unhandled: 'UNC',
+};
+
 // --- Inline SVG icons (no lucide in Preact bundle) ---
 
 const TerminalIcon = () => (
@@ -190,7 +196,15 @@ export const Execution: FunctionalComponent<Props> = ({
           <div key={i} class="exec-log-entry" style={{ color: LOG_LEVEL_COLORS[log.level] }}>
             <span class="exec-log-time">{formatTimestamp(log.timestamp)}</span>
             <span class="exec-log-level">{LOG_LEVEL_LABELS[log.level]}</span>
-            <span class="exec-log-msg">{log.message}</span>
+            {log.source && log.source !== 'console' && (
+              <span class="exec-log-source">{SOURCE_LABELS[log.source]}</span>
+            )}
+            <span class="exec-log-msg">
+              {log.message}
+              {log.stackTrace && (
+                <div class="exec-log-stack">{log.stackTrace}</div>
+              )}
+            </span>
           </div>
         ))
       )}
@@ -378,7 +392,15 @@ export const Execution: FunctionalComponent<Props> = ({
             <div key={i} class="exec-log-entry" style={{ color: LOG_LEVEL_COLORS[log.level] }}>
               <span class="exec-log-time">{formatTimestamp(log.timestamp)}</span>
               <span class="exec-log-level">{LOG_LEVEL_LABELS[log.level]}</span>
-              <span class="exec-log-msg">{log.message}</span>
+              {log.source && log.source !== 'console' && (
+                <span class="exec-log-source">{SOURCE_LABELS[log.source]}</span>
+              )}
+              <span class="exec-log-msg">
+                {log.message}
+                {log.stackTrace && (
+                  <div class="exec-log-stack">{log.stackTrace}</div>
+                )}
+              </span>
             </div>
           ))}
           <div ref={logsEndRef} />

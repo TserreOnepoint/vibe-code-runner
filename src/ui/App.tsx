@@ -100,6 +100,10 @@ const App: FunctionalComponent = () => {
         // Init supabase then request auth
         initSupabase(merged.supabaseUrl, merged.supabaseAnonKey);
         setSupabaseReady(true);
+
+        // US-RUN-06: pass Supabase URL to execution hook for logs streamer
+        executionHook.setSupabaseUrl(merged.supabaseUrl);
+
         sendToPlugin({ type: 'GET_STORED_AUTH' });
         return;
       }
