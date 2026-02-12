@@ -183,10 +183,17 @@ export function useExecution(): UseExecutionReturn {
 
       case 'EXECUTION_DONE':
         setDuration(msg.payload.duration);
-        setStatus(msg.payload.duration === -1 ? 'stopped' : 'done');
-        executionIdRef.current = null;
-        // Stop streamer (flushes remaining buffer)
-        logsStreamer.stopStream();
+        if (msg.payload.duration === -1) {
+          // Manual stop — fully clean up streamer
+          setStatus('stopped');
+          executionIdRef.current = null;
+          logsStreamer.stopStream();
+        } else {
+          // Normal completion — keep streamer alive for event-driven plugins
+          // (figma.ui.onmessage handlers may still produce logs)
+          // Streamer is stopped later on reset(), stop(), or new execute().
+          setStatus('done');
+        }
         // Keep plugin UI visible after execution ends (plugin may still be interactive)
         return true;
 

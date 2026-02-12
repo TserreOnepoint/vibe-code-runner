@@ -102,7 +102,7 @@ export function execute(
       }
     },
     onClosePlugin: () => {
-      // Plugin called figma.closePlugin() \u2014 end the execution gracefully
+      // Plugin called figma.closePlugin() — end the execution gracefully
       if (currentExecutionId === executionId && !aborted) {
         const duration = Date.now() - startTime;
         // Send UI close first, then done
@@ -136,7 +136,7 @@ export function execute(
 
   try {
     // Inject __html__ (Figma build-time variable) so plugin code can call figma.showUI(__html__).
-    // The 'figma' parameter shadows the global \u2014 plugin sees our proxy, Runner keeps the real one.
+    // The 'figma' parameter shadows the global — plugin sees our proxy, Runner keeps the real one.
     const escapedHtml = uiHtml.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     const wrappedCode = `
       "use strict";
@@ -148,7 +148,7 @@ export function execute(
       }
     `;
 
-    // Pass figmaProxy as the 'figma' parameter \u2014 shadows global figma inside the function
+    // Pass figmaProxy as the 'figma' parameter — shadows global figma inside the function
     const execFn = new Function('figma', wrappedCode);
     const result = execFn(figmaProxy);
 
@@ -234,11 +234,13 @@ export function getExecutionId(): string | null {
 // --- Internal helpers ---
 
 /**
- * Soft cleanup: restore console + clear timeout only.
- * Keeps bridge and executionId alive so plugin UI handlers keep working.
+ * Soft cleanup: clear timeout only.
+ * Keeps console override and bridge alive so event-driven plugins
+ * (figma.ui.onmessage handlers) continue to have their logs captured
+ * and streamed after synchronous code returns.
+ * Console restore happens only on fullCleanup.
  */
 function softCleanup(): void {
-  consoleService.restore();
   if (timeoutHandle !== null) {
     clearTimeout(timeoutHandle);
     timeoutHandle = null;
@@ -246,10 +248,11 @@ function softCleanup(): void {
 }
 
 /**
- * Full cleanup: soft cleanup + reset bridge + clear execution state.
+ * Full cleanup: restore console + reset bridge + clear execution state.
  * Used on stop, error, timeout, closePlugin, or before a new execution.
  */
 function fullCleanup(): void {
+  consoleService.restore();
   softCleanup();
   uiBridge.reset();
   currentExecutionId = null;
