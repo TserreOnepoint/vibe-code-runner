@@ -3,14 +3,17 @@
 //
 // Responsibilities:
 //   1. Broadcast each log to Realtime channel `project:{projectId}:logs`
-//      so the web app can display them live.
+//      so the web app can display them live (immediate, fire-and-forget).
 //   2. Buffer logs and batch-insert into `execution_logs` table
-//      every FLUSH_INTERVAL_MS (5s) or on stream end.
+//      every FLUSH_INTERVAL_MS via the `logs-stream` edge function.
 //
-// Batch insert uses the `proxy` edge function to bypass RLS
-// (execution_logs requires service_role for writes).
-// If the proxy insert fails, it degrades gracefully \u2014 logs are
-// still available via Realtime broadcast.
+// The `logs-stream` edge function runs with service_role and handles:
+//   - Validation, rate limiting
+//   - Persistence in execution_logs (bypasses RLS)
+//   - Server-side broadcast (event: 'log') as backup
+//
+// Direct Realtime broadcast (event: 'execution_log') provides
+// immediate delivery; the edge function batch provides persistence.
 //
 // Runs in ui.html (has fetch, DOM, window).
 // ============================================================
@@ -27,7 +30,7 @@ const MAX_BATCH_SIZE = 50;
 // --- State ---
 
 let channel: RealtimeChannel | null = null;
-let buffer: ExecutionLogRow[] = [];
+let buffer: LogsStreamEntry[] = [];
 let flushTimer: ReturnType<typeof setInterval> | null = null;
 let streamConfig: StreamConfig | null = null;
 let channelReady = false;
@@ -38,15 +41,15 @@ interface StreamConfig {
   supabaseUrl: string;
 }
 
-interface ExecutionLogRow {
-  project_id: string;
-  execution_id: string;
+/** Format expected by the logs-stream edge function */
+interface LogsStreamEntry {
   level: string;
   message: string;
+  execution_id: string;
+  timestamp: string; // ISO string
   stack_trace: string | null;
-  source: string;
+  source: string | null;
   metadata: Record<string, unknown> | null;
-  created_at: string;
 }
 
 // ============================================================
@@ -55,7 +58,7 @@ interface ExecutionLogRow {
 
 /**
  * Start a new log stream for an execution.
- * Opens a Realtime channel and starts the flush timer.
+ * Opens a Realtime channel for immediate broadcast and starts the flush timer.
  */
 export function startStream(config: StreamConfig): void {
   // Clean up any previous stream
@@ -73,6 +76,7 @@ export function startStream(config: StreamConfig): void {
     channel.subscribe((status: string) => {
       if (status === 'SUBSCRIBED') {
         channelReady = true;
+        console.log(`[logs-streamer] Channel ${channelName} subscribed`);
       }
     });
   } catch (err) {
@@ -80,7 +84,7 @@ export function startStream(config: StreamConfig): void {
     channel = null;
   }
 
-  // Start periodic flush
+  // Start periodic flush via logs-stream edge function
   flushTimer = setInterval(() => {
     flushBuffer().catch((err) => {
       console.warn('[logs-streamer] Flush error:', err);
@@ -94,7 +98,7 @@ export function startStream(config: StreamConfig): void {
 export function pushLog(log: LogEntry): void {
   if (!streamConfig) return;
 
-  // 1. Realtime broadcast (fire and forget)
+  // 1. Realtime broadcast — immediate delivery (fire and forget)
   if (channel && channelReady) {
     try {
       channel.send({
@@ -115,16 +119,15 @@ export function pushLog(log: LogEntry): void {
     }
   }
 
-  // 2. Buffer for batch insert
+  // 2. Buffer for batch insert via logs-stream edge function
   buffer.push({
-    project_id: streamConfig.projectId,
-    execution_id: streamConfig.executionId,
     level: log.level,
     message: log.message,
+    execution_id: streamConfig.executionId,
+    timestamp: new Date(log.timestamp).toISOString(),
     stack_trace: log.stackTrace || null,
     source: log.source || 'console',
     metadata: null,
-    created_at: new Date(log.timestamp).toISOString(),
   });
 }
 
@@ -171,15 +174,18 @@ export function isStreaming(): boolean {
 }
 
 // ============================================================
-// Internal: batch insert via proxy edge function
+// Internal: batch insert via logs-stream edge function
 // ============================================================
 
 /**
- * Flush buffered logs to execution_logs table via the proxy edge function.
- * The proxy runs server-side with service_role access, bypassing RLS.
+ * Flush buffered logs via the `logs-stream` edge function.
+ * The edge function runs with service_role, handling:
+ *   - Persistence in execution_logs (bypasses RLS)
+ *   - Server-side broadcast on `project:{projectId}:logs` (event: 'log')
+ *   - Validation and rate limiting
  *
- * If the proxy call fails, logs are lost from persistence but remain
- * available in the UI and via Realtime broadcast.
+ * If the call fails, logs are lost from persistence but remain
+ * available in the UI and via direct Realtime broadcast.
  */
 async function flushBuffer(): Promise<void> {
   if (buffer.length === 0 || !streamConfig) return;
@@ -187,18 +193,18 @@ async function flushBuffer(): Promise<void> {
   // Take current buffer and reset
   const toFlush = buffer.splice(0);
 
-  // Split into batches
+  // Split into batches (logs-stream max is 100, we use 50)
   for (let i = 0; i < toFlush.length; i += MAX_BATCH_SIZE) {
     const batch = toFlush.slice(i, i + MAX_BATCH_SIZE);
-    await insertBatch(batch);
+    await sendBatch(batch);
   }
 }
 
 /**
- * Insert a batch of logs via the proxy edge function.
+ * Send a batch of logs to the logs-stream edge function.
  */
-async function insertBatch(rows: ExecutionLogRow[]): Promise<void> {
-  if (!streamConfig || rows.length === 0) return;
+async function sendBatch(logs: LogsStreamEntry[]): Promise<void> {
+  if (!streamConfig || logs.length === 0) return;
 
   try {
     const sb = getSupabase();
@@ -210,29 +216,29 @@ async function insertBatch(rows: ExecutionLogRow[]): Promise<void> {
       return;
     }
 
-    // Use proxy edge function to insert with service_role privileges
-    const response = await fetch(`${streamConfig.supabaseUrl}/functions/v1/proxy`, {
+    const response = await fetch(`${streamConfig.supabaseUrl}/functions/v1/logs-stream`, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        target_url: `${streamConfig.supabaseUrl}/rest/v1/execution_logs`,
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify(rows),
+        action: 'stream_logs_batch',
+        project_id: streamConfig.projectId,
+        logs,
       }),
     });
 
     if (!response.ok) {
       const text = await response.text().catch(() => '');
-      console.warn(`[logs-streamer] Proxy insert failed (${response.status}): ${text}`);
+      console.warn(`[logs-streamer] logs-stream batch failed (${response.status}): ${text}`);
+    } else {
+      const result = await response.json().catch(() => null);
+      if (result && !result.success) {
+        console.warn('[logs-streamer] logs-stream returned error:', result.error);
+      }
     }
   } catch (err) {
-    console.warn('[logs-streamer] Batch insert error:', err);
+    console.warn('[logs-streamer] Batch send error:', err);
   }
 }
