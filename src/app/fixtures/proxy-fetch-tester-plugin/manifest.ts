@@ -1,0 +1,15 @@
+// ============================================================
+// manifest.json config for Proxy Fetch Tester plugin (US-RUN-07)
+// ============================================================
+
+export const MANIFEST_CONFIG = {
+  name: 'Proxy Fetch Tester',
+  id: '1601712706906363589',
+  api: '1.0.0',
+  main: 'code.js',
+  ui: 'ui.html',
+  editorType: ['figma', 'figjam'],
+  networkAccess: {
+    allowedDomains: ['https://*.supabase.co'],
+  },
+};
