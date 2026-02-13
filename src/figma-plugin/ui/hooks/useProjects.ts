@@ -21,34 +21,18 @@ export function useProjects(userId: string | null): UseProjectsReturn {
 
   const fetchProjects = useCallback(async () => {
     if (!userId) return;
-
-    setLoading(true);
-    setError(null);
-
+    setLoading(true); setError(null);
     try {
       const sb = getSupabase();
-      const { data, error: dbError } = await sb
-        .from('projects')
-        .select('id, name, description, status, updated_at')
-        .eq('user_id', userId)
-        .order('updated_at', { ascending: false });
-
-      if (dbError) {
-        setError(dbError.message);
-        setLoading(false);
-        return;
-      }
-
-      setProjects((data as Project[]) || []);
-      setLoading(false);
+      const { data, error: dbError } = await sb.from('projects').select('id, name, description, status, updated_at').eq('user_id', userId).order('updated_at', { ascending: false });
+      if (dbError) { setError(dbError.message); setLoading(false); return; }
+      setProjects((data as Project[]) || []); setLoading(false);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Network error';
-      setError(message);
-      setLoading(false);
+      setError(message); setLoading(false);
     }
   }, [userId]);
 
   const clearError = useCallback(() => setError(null), []);
-
   return { projects, loading, error, fetch: fetchProjects, clearError };
 }

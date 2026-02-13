@@ -23,52 +23,28 @@ interface Props {
 }
 
 export const ProjectList: FunctionalComponent<Props> = ({
-  userEmail,
-  projects,
-  loading,
-  error,
-  bundleError,
-  onFetch,
-  onClearError,
-  onClearBundleError,
-  onSelect,
-  onSignOut,
+  userEmail, projects, loading, error, bundleError,
+  onFetch, onClearError, onClearBundleError, onSelect, onSignOut,
 }) => {
-  useEffect(() => {
-    onFetch();
-  }, [onFetch]);
+  useEffect(() => { onFetch(); }, [onFetch]);
 
   return (
     <div class="screen">
       <div class="screen-header">
         <div class="screen-title">My Projects</div>
-        <div class="welcome">
-          Signed in as <span class="welcome-email">{userEmail}</span>
-        </div>
+        <div class="welcome">Signed in as <span class="welcome-email">{userEmail}</span></div>
       </div>
-
       {error && <ErrorBanner message={error} onDismiss={onClearError} />}
       {bundleError && <ErrorBanner message={bundleError} onDismiss={onClearBundleError} />}
-
       <div class="project-toolbar">
-        <button class="btn btn-ghost" onClick={onFetch} disabled={loading}>
-          {loading ? 'Loading...' : 'Refresh'}
-        </button>
+        <button class="btn btn-ghost" onClick={onFetch} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</button>
       </div>
-
       {loading && projects.length === 0 && (
-        <div class="loader" style={{ flex: 1 }}>
-          <div class="spinner" />
-          <span>Loading projects...</span>
-        </div>
+        <div class="loader" style={{ flex: 1 }}><div class="spinner" /><span>Loading projects...</span></div>
       )}
-
       {!loading && projects.length === 0 && !error && (
-        <div class="project-empty">
-          Create your first project on Vibe Code Studio
-        </div>
+        <div class="project-empty">Create your first project on Vibe Code Studio</div>
       )}
-
       {projects.length > 0 && (
         <div class="project-list">
           {projects.map((project) => (
@@ -77,17 +53,12 @@ export const ProjectList: FunctionalComponent<Props> = ({
                 <span class="project-item-name">{project.name}</span>
                 <StatusBadge status={project.status} />
               </div>
-              {project.description && (
-                <div class="project-item-desc">{project.description}</div>
-              )}
+              {project.description && <div class="project-item-desc">{project.description}</div>}
             </button>
           ))}
         </div>
       )}
-
-      <button class="btn btn-ghost" style={{ marginTop: 'auto' }} onClick={onSignOut}>
-        Sign out
-      </button>
+      <button class="btn btn-ghost" style={{ marginTop: 'auto' }} onClick={onSignOut}>Sign out</button>
     </div>
   );
 };
