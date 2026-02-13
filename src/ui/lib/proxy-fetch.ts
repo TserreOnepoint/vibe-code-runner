@@ -58,7 +58,7 @@ export async function executeProxyFetch(
     const accessToken = sessionData?.session?.access_token;
 
     if (!accessToken) {
-      return errorResponse(request.requestId, 'No auth session \u2014 cannot proxy fetch');
+      return errorResponse(request.requestId, 'No auth session — cannot proxy fetch');
     }
 
     const proxyUrl = `${supabaseUrl}${PROXY_EDGE_FUNCTION}`;
@@ -85,10 +85,46 @@ export async function executeProxyFetch(
       body: JSON.stringify(proxyPayload),
     });
 
-    // Read response body as text
-    const responseBody = await response.text();
+    // Read and unwrap the proxy envelope.
+    // The proxy edge function wraps responses as:
+    //   Success: { success: true, status: 200, data: <actual_data>, headers: {...} }
+    //   Domain blocked: { success: false, error: "...", error_code: "DOMAIN_NOT_ALLOWED" }
+    //   Target HTTP error: { success: false, status: 404, data: ..., headers: {...} }
+    // We must unwrap so the plugin's .json()/.text() gets the real data.
+    const rawBody = await response.text();
+    let envelope: any = null;
+    try {
+      envelope = JSON.parse(rawBody);
+    } catch {
+      // Not JSON — pass through as-is
+    }
 
-    // Extract response headers
+    // Proxy returned an error (domain blocked, missing param, etc.)
+    if (envelope && envelope.error && !('data' in envelope)) {
+      return errorResponse(request.requestId, envelope.error);
+    }
+
+    // Valid proxy envelope with data — unwrap it
+    if (envelope && typeof envelope === 'object' && 'data' in envelope) {
+      const targetStatus = (envelope.status as number) || response.status;
+      const targetOk = targetStatus >= 200 && targetStatus < 300;
+      const targetHeaders = (envelope.headers || {}) as Record<string, string>;
+      // Re-serialize data: if it was parsed JSON by the proxy, stringify it back
+      const targetBody = typeof envelope.data === 'string'
+        ? envelope.data
+        : JSON.stringify(envelope.data);
+
+      return {
+        requestId: request.requestId,
+        ok: targetOk,
+        status: targetStatus,
+        statusText: targetOk ? 'OK' : `HTTP ${targetStatus}`,
+        headers: targetHeaders,
+        body: targetBody,
+      };
+    }
+
+    // Fallback: pass through raw response (shouldn't happen normally)
     const responseHeaders: Record<string, string> = {};
     response.headers.forEach((value, key) => {
       responseHeaders[key] = value;
@@ -100,7 +136,7 @@ export async function executeProxyFetch(
       status: response.status,
       statusText: response.statusText,
       headers: responseHeaders,
-      body: responseBody,
+      body: rawBody,
     };
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
