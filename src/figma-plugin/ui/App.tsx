@@ -84,12 +84,15 @@ const App: FunctionalComponent = () => {
         sendToPlugin({ type: 'GET_STORED_AUTH' });
         return;
       }
+
       if (msg.type === 'LAST_PROJECT_STORED' || msg.type === 'LAST_PROJECT_DATA' || msg.type === 'SETTING_STORED') {
         return;
       }
+
       if (executionHook.handlePluginMessage(msg)) {
         return;
       }
+
       handlePluginMessage(msg);
     },
     [handlePluginMessage, executionHook.handlePluginMessage],
@@ -125,6 +128,7 @@ const App: FunctionalComponent = () => {
           onClearError={clearError}
         />
       );
+
     case 'projects':
       if (!auth.user) return null;
       return (
@@ -142,6 +146,7 @@ const App: FunctionalComponent = () => {
           onSignOut={signOut}
         />
       );
+
     case 'execution':
       if (!bundleHook.bundle || !bundleHook.selectedProject) return null;
       return (
@@ -161,6 +166,7 @@ const App: FunctionalComponent = () => {
           onBack={handleBackToProjects}
         />
       );
+
     case 'settings':
       return (
         <div class="screen">
@@ -168,6 +174,7 @@ const App: FunctionalComponent = () => {
           <div style={{ color: 'var(--color-text-muted)' }}>Coming soon (US-RUN-12)</div>
         </div>
       );
+
     default:
       return null;
   }
