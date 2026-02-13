@@ -12,7 +12,7 @@ const isWatch = process.argv.includes('--watch');
 // This avoids needing a separate src/ui/index.tsx file
 const UI_ENTRY = `
 import { h, render } from 'preact';
-import App from './src/ui/App';
+import App from './src/figma-plugin/ui/App';
 render(h(App, null), document.getElementById('app'));
 `;
 
@@ -20,7 +20,7 @@ render(h(App, null), document.getElementById('app'));
 
 async function buildCode() {
   await esbuild.build({
-    entryPoints: ['src/plugin/controller.ts'],
+    entryPoints: ['src/figma-plugin/plugin/controller.ts'],
     bundle: true,
     outfile: 'code.js',
     format: 'iife',
@@ -50,7 +50,7 @@ async function buildUI() {
   });
 
   const js = result.outputFiles[0].text;
-  const css = readFileSync('src/ui/styles/tokens.css', 'utf-8');
+  const css = readFileSync('src/figma-plugin/ui/styles/tokens.css', 'utf-8');
 
   const html = `<!DOCTYPE html>
 <html>
@@ -87,7 +87,7 @@ await build();
 if (isWatch) {
   console.log('[watch] Watching src/ for changes...');
   let timeout = null;
-  watch('src', { recursive: true }, () => {
+  watch('src/figma-plugin', { recursive: true }, () => {
     if (timeout) clearTimeout(timeout);
     timeout = setTimeout(async () => {
       try {
