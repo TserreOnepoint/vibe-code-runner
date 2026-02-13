@@ -1,5 +1,16 @@
 // ============================================================
 // proxy-fetch.service.ts - US-RUN-07: Custom fetch for plugin sandbox
+//
+// Creates a fetch()-like function that plugins can call from code.js.
+// Since code.js has NO native fetch, requests are routed through
+// the Runner's message bridge:
+//
+//   Plugin code calls fetch(url)
+//     -> code.js sends PROXY_FETCH_REQUEST to ui.html
+//     -> ui.html calls proxy edge function
+//     -> ui.html sends PROXY_FETCH_RESPONSE back to code.js
+//     -> Promise resolves with a Response-like object
+//
 // Runs in code.js sandbox (no DOM, no real fetch).
 // ============================================================
 
@@ -92,7 +103,6 @@ class ProxyResponse {
 export function createProxyFetch(
   callbacks: ProxyFetchCallbacks,
 ): (input: string | URL, init?: RequestInit) => Promise<ProxyResponse> {
-
   return (input: string | URL, init?: RequestInit): Promise<ProxyResponse> => {
     const executionId = callbacks.getExecutionId();
     if (!executionId) {

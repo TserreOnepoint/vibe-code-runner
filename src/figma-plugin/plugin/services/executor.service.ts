@@ -9,14 +9,19 @@ import * as uiBridge from './ui-bridge.service';
 import * as proxyFetchService from './proxy-fetch.service';
 import type { PluginMessage } from '../types/messages.types';
 
-const EXECUTION_TIMEOUT_MS = 60_000;
+const EXECUTION_TIMEOUT_MS = 60_000; // 60 seconds
 
+// Default Runner plugin window dimensions (must match controller.ts showUI call)
 const RUNNER_DEFAULT_WIDTH = 360;
 const RUNNER_DEFAULT_HEIGHT = 480;
+
+// --- Active execution state ---
 
 let currentExecutionId: string | null = null;
 let timeoutHandle: ReturnType<typeof setTimeout> | null = null;
 let aborted = false;
+
+// --- UUID v4 generator (no crypto.randomUUID in Figma sandbox) ---
 
 function uuidv4(): string {
   return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
@@ -25,6 +30,8 @@ function uuidv4(): string {
     return v.toString(16);
   });
 }
+
+// --- Public API ---
 
 export interface ExecutorCallbacks {
   sendToUI: (msg: PluginMessage) => void;

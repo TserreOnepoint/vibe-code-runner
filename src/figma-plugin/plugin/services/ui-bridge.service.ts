@@ -1,11 +1,25 @@
 // ============================================================
 // ui-bridge.service.ts - Figma API proxy for loaded plugins (US-RUN-05)
+//
+// Creates a Proxy that intercepts plugin calls to figma.showUI(),
+// figma.ui.postMessage(), figma.ui.onmessage, figma.closePlugin(), etc.
+// and routes them through the Runner's message system.
+//
+// IMPORTANT: The Proxy uses an empty object {} as its target instead
+// of the real `figma` global. This avoids the "proxy: inconsistent get"
+// error that occurs when the target has non-configurable, non-writable
+// properties (which `figma` does in the Figma sandbox) and the get trap
+// returns a different value.
+//
+// The proxy is passed as a parameter to `new Function('figma', code)`,
+// shadowing the global `figma` ONLY within plugin code.
+//
 // Runs in code.js sandbox (no DOM, no fetch).
 // ============================================================
 
 import type { PluginMessage } from '../types/messages.types';
 
-const MAX_HTML_SIZE = 1_000_000;
+const MAX_HTML_SIZE = 1_000_000; // 1MB
 
 export interface UIBridgeCallbacks {
   sendToUI: (msg: PluginMessage) => void;
