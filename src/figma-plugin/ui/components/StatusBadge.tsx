@@ -19,23 +19,8 @@ export const StatusBadge: FunctionalComponent<Props> = ({ status }) => {
   const { label, cssVar } = STATUS_MAP[status] || STATUS_MAP.draft;
 
   return (
-    <span
-      style={{
-        display: 'inline-flex',
-        alignItems: 'center',
-        gap: '4px',
-        fontSize: 'var(--font-size-xs)',
-        color: cssVar,
-      }}
-    >
-      <span
-        style={{
-          width: '6px',
-          height: '6px',
-          borderRadius: '50%',
-          background: cssVar,
-        }}
-      />
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', fontSize: 'var(--font-size-xs)', color: cssVar }}>
+      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: cssVar }} />
       {label}
     </span>
   );

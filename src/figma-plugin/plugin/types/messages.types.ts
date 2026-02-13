@@ -2,8 +2,6 @@
 // Message contracts between code.js (plugin) and ui.html (UI)
 // ============================================================
 
-// --- UI -> Plugin (messages sent from ui.html to code.js) ---
-
 export type UIMessage =
   | { type: 'STORE_AUTH'; payload: AuthPayload }
   | { type: 'CLEAR_AUTH' }
@@ -27,8 +25,6 @@ export interface AuthPayload {
   };
 }
 
-// --- Plugin -> UI (messages sent from code.js to ui.html) ---
-
 export type PluginMessage =
   | { type: 'AUTH_RESTORED'; payload: AuthPayload }
   | { type: 'AUTH_EMPTY' }
@@ -48,8 +44,6 @@ export type PluginMessage =
   | { type: 'PLUGIN_UI_CLOSE'; payload: { executionId: string } }
   | { type: 'PROXY_FETCH_REQUEST'; payload: { requestId: string; url: string; method: string; headers: Record<string, string>; body: string | null } }
   | { type: 'ERROR'; payload: { message: string; source: string } };
-
-// --- Settings ---
 
 export interface RunnerSettings {
   supabaseUrl: string;

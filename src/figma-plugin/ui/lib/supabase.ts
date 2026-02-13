@@ -1,6 +1,5 @@
 // ============================================================
 // supabase.ts - Client Supabase singleton for ui.html
-// Runs in UI iframe: has fetch, DOM, window
 // ============================================================
 
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
@@ -16,10 +15,7 @@ export function initSupabase(url: string, anonKey: string): SupabaseClient {
   currentUrl = url;
   currentKey = anonKey;
   client = createClient(url, anonKey, {
-    auth: {
-      persistSession: false,
-      autoRefreshToken: false,
-    },
+    auth: { persistSession: false, autoRefreshToken: false },
   });
   return client;
 }
