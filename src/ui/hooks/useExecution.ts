@@ -5,6 +5,8 @@
 //   - Integrates logs-streamer for Realtime broadcast + batch insert
 //   - Captures window.onerror + unhandledrejection as error logs
 //   - MAX_LOGS raised to 1000 (matches console.service cap)
+// US-RUN-07 additions:
+//   - Adds proxy-fetch for handling fetch requests from plugin code
 // ============================================================
 
 import { useState, useCallback, useRef, useEffect } from 'preact/hooks';
@@ -14,6 +16,7 @@ import { DEFAULT_PLUGIN_UI } from '../../plugin/types/runner.types';
 import type { PluginMessage } from '../../plugin/types/messages.types';
 import { sendToPlugin } from './useMessaging';
 import * as logsStreamer from '../lib/logs-streamer';
+import { executeProxyFetch } from '../lib/proxy-fetch';
 
 interface UseExecutionReturn {
   status: ExecutionStatus;
@@ -243,6 +246,32 @@ export function useExecution(): UseExecutionReturn {
       case 'PLUGIN_UI_CLOSE':
         setPluginUI(DEFAULT_PLUGIN_UI);
         return true;
+
+      // --- Proxy fetch (US-RUN-07) ---
+
+      case 'PROXY_FETCH_REQUEST': {
+        const url = supabaseUrlRef.current;
+        if (url) {
+          executeProxyFetch(msg.payload, url).then((response) => {
+            sendToPlugin({ type: 'PROXY_FETCH_RESPONSE', payload: response });
+          });
+        } else {
+          // No Supabase URL configured — return error
+          sendToPlugin({
+            type: 'PROXY_FETCH_RESPONSE',
+            payload: {
+              requestId: msg.payload.requestId,
+              ok: false,
+              status: 0,
+              statusText: '',
+              headers: {},
+              body: null,
+              error: 'Supabase URL not configured',
+            },
+          });
+        }
+        return true;
+      }
 
       default:
         return false;

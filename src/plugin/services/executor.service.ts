@@ -6,6 +6,7 @@
 import * as consoleService from './console.service';
 import type { CapturedLog } from './console.service';
 import * as uiBridge from './ui-bridge.service';
+import * as proxyFetchService from './proxy-fetch.service';
 import type { PluginMessage } from '../types/messages.types';
 
 const EXECUTION_TIMEOUT_MS = 60_000; // 60 seconds
@@ -41,7 +42,8 @@ export interface ExecutorCallbacks {
  * - Generates a unique execution_id
  * - Overrides console to capture logs
  * - Creates a figma Proxy to intercept showUI/ui.* calls (US-RUN-05)
- * - Passes proxy as `figma` parameter to new Function (shadows global)
+ * - Creates a custom fetch via proxy edge function (US-RUN-07)
+ * - Passes proxy as `figma` and proxyFetch as `fetch` to new Function
  * - Injects __html__ for Figma build-time compatibility
  * - Enforces 60s timeout
  *
@@ -119,6 +121,13 @@ export function execute(
     },
   });
 
+  // Create custom fetch (US-RUN-07): routes HTTP calls through proxy edge function
+  // Passed as parameter to new Function('figma', 'fetch', code) to provide fetch in sandbox.
+  const proxyFetch = proxyFetchService.createProxyFetch({
+    sendToUI: callbacks.sendToUI,
+    getExecutionId: () => currentExecutionId,
+  });
+
   // Set timeout (60s max)
   timeoutHandle = setTimeout(() => {
     if (currentExecutionId === executionId && !aborted) {
@@ -137,6 +146,7 @@ export function execute(
   try {
     // Inject __html__ (Figma build-time variable) so plugin code can call figma.showUI(__html__).
     // The 'figma' parameter shadows the global — plugin sees our proxy, Runner keeps the real one.
+    // The 'fetch' parameter provides HTTP access via proxy edge function (US-RUN-07).
     const escapedHtml = uiHtml.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
     const wrappedCode = `
       "use strict";
@@ -149,8 +159,9 @@ export function execute(
     `;
 
     // Pass figmaProxy as the 'figma' parameter — shadows global figma inside the function
-    const execFn = new Function('figma', wrappedCode);
-    const result = execFn(figmaProxy);
+    // Pass proxyFetch as the 'fetch' parameter — provides HTTP in the sandbox (US-RUN-07)
+    const execFn = new Function('figma', 'fetch', wrappedCode);
+    const result = execFn(figmaProxy, proxyFetch);
 
     // Handle async plugin code (returns a Promise)
     if (result && typeof result.then === 'function') {
@@ -255,6 +266,7 @@ function fullCleanup(): void {
   consoleService.restore();
   softCleanup();
   uiBridge.reset();
+  proxyFetchService.cleanup();
   currentExecutionId = null;
   aborted = false;
 }

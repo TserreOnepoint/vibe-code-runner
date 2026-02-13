@@ -15,7 +15,8 @@ export type UIMessage =
   | { type: 'EXECUTE_PLUGIN'; payload: { codeJs: string; uiHtml: string; projectId: string } }
   | { type: 'STOP_EXECUTION' }
   | { type: 'PLUGIN_UI_MESSAGE'; payload: { executionId: string; data: unknown } }
-  | { type: 'RESTORE_RUNNER_SIZE' };
+  | { type: 'RESTORE_RUNNER_SIZE' }
+  | { type: 'PROXY_FETCH_RESPONSE'; payload: { requestId: string; ok: boolean; status: number; statusText: string; headers: Record<string, string>; body: string | null; error?: string } };
 
 export interface AuthPayload {
   access_token: string;
@@ -45,6 +46,7 @@ export type PluginMessage =
   | { type: 'PLUGIN_UI_POST_MESSAGE'; payload: { executionId: string; data: unknown } }
   | { type: 'PLUGIN_UI_RESIZE'; payload: { executionId: string; width: number; height: number } }
   | { type: 'PLUGIN_UI_CLOSE'; payload: { executionId: string } }
+  | { type: 'PROXY_FETCH_REQUEST'; payload: { requestId: string; url: string; method: string; headers: Record<string, string>; body: string | null } }
   | { type: 'ERROR'; payload: { message: string; source: string } };
 
 // --- Settings ---

@@ -8,6 +8,7 @@ import { DEFAULT_SETTINGS, RUNNER_DEFAULT_WIDTH, RUNNER_DEFAULT_HEIGHT } from '.
 import * as authService from './services/auth.service';
 import * as executorService from './services/executor.service';
 import * as uiBridge from './services/ui-bridge.service';
+import * as proxyFetchService from './services/proxy-fetch.service';
 
 // --- Show UI ---
 
@@ -117,6 +118,12 @@ async function handleMessage(msg: UIMessage): Promise<void> {
         if (executorService.getExecutionId()) {
           executorService.stop(executorCallbacks);
         }
+        break;
+      }
+
+      case 'PROXY_FETCH_RESPONSE': {
+        // Route proxy fetch response to the pending promise in proxy-fetch service (US-RUN-07)
+        proxyFetchService.resolveRequest(msg.payload.requestId, msg.payload);
         break;
       }
 
